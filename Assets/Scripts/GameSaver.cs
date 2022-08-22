@@ -14,12 +14,14 @@ namespace Persyst{
 
         Dictionary<ulong, JRaw> jsonDictionary;
 
+        [System.NonSerialized] public bool isFileLoaded;
         void Start()
         {
             if(instance!=null && instance!=this){
                 Destroy(instance);
             }
             instance = this;
+            isFileLoaded = false;
         }
 
         public void SaveObject(ulong UID, JRaw value){
@@ -49,6 +51,8 @@ namespace Persyst{
             else
                 Debug.LogWarning($"No save file found on path \"{path}\". Creating an empty dictionary.");
             jsonDictionary = JsonConvert.DeserializeObject<Dictionary<ulong,JRaw>>(allText);
+
+            isFileLoaded = true;
             OnSaveFileLoaded?.Invoke();
         }
 

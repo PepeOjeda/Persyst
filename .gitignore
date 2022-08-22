@@ -1,9 +1,12 @@
 #Ignore everything except the Assets folder, the license file and the readme
 #and, inside the Assets folder, ignore the Plugins subfolder
+#oh, and all .meta files, while we're at it
 /*
 
 !Assets
 Assets/Plugins
+
+*.meta
 
 !LICENSE
 !README.md

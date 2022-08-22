@@ -26,15 +26,22 @@ namespace Persyst{
 
             if(assigned){
                 UIDManager.instance.refreshReference(gameObject, myUID);
-                if(Application.isPlaying)
-                    LoadObject(GameSaver.instance.RetrieveObject(myUID));
+                if(GameSaver.instance!=null && GameSaver.instance.isFileLoaded)
+                    Initialize();
+
+                GameSaver.OnSaveFileLoaded += Initialize;
                 return;
             }
             myUID=UIDManager.instance.generateUID(gameObject);
             assigned=true;
 
         }
-                
+
+        void Initialize(){
+            if(Application.isPlaying)
+                LoadObject(GameSaver.instance.RetrieveObject(myUID));
+        }
+
         void OnEnable(){
             GameSaver.saveTheGame += SaveObject;
         }
