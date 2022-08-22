@@ -76,6 +76,7 @@ namespace Persyst{
 
             //if some object was waiting for this one to be loaded, pass it a reference
             if(pendingReferences.TryGetValue(_uid, out List<PendingReference> references) ){
+                var newPendingReferences = new List<PendingReference>();
                 foreach(PendingReference pending in references){
                     object referencedObject = null;
                     Type variableType =ReflectionUtilities.GetUnderlyingType(pending.memberInfo);
@@ -90,10 +91,14 @@ namespace Persyst{
                     else{
                         Debug.LogError("Wrong subtype of UnityEngine.Object used in the UID system");
                     }
-                    if(pending.memberInfo == null || pending.holderScript==null)
+
+                    if(pending.memberInfo == null || pending.holderScript==null){
+                        newPendingReferences.Add(pending);
                         continue;
+                    }
                     ReflectionUtilities.setValue(pending.memberInfo, pending.holderScript, referencedObject);
                 }
+                pendingReferences[_uid] = newPendingReferences;
             }
         }
         
