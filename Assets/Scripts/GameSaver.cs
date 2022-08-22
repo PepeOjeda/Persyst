@@ -22,6 +22,7 @@ namespace Persyst{
             }
             instance = this;
             isFileLoaded = false;
+            jsonDictionary = new Dictionary<ulong, JRaw>();
         }
 
         public void SaveObject(ulong UID, JRaw value){
@@ -31,11 +32,6 @@ namespace Persyst{
         public JRaw RetrieveObject(ulong UID){
             if(!Application.isPlaying)
                 return null;
-
-            if(jsonDictionary == null){
-                Debug.LogWarning("No savegame dictionary has been loaded! (readFile() was never called) Creating an empty one.");
-                jsonDictionary = new Dictionary<ulong, JRaw>();
-            } 
 
             if(jsonDictionary.TryGetValue(UID, out JRaw value))
                 return value;

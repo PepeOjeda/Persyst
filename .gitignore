@@ -5,6 +5,7 @@
 
 !Assets
 Assets/Plugins
+Assets/saveFile.json
 
 *.meta
 
