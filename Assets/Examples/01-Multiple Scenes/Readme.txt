@@ -1,6 +1,6 @@
 In this case, we have multiple scenes that can be loaded at the same time.
 
-Unity's serialization system will complain about having cross-scene references, but Persyst does support them (with some small caveats).
+Unity's serialization system will complain about having cross-scene references, but Persyst does support them (with some small caveats, see the end of this file).
 
 Let's do two tests:
 
@@ -22,5 +22,5 @@ Keeping the same saveFile from before, start playmode with only the Persyst scen
 Pretty cool, huh?
 
 
-Now, the limitations. If you have both scenes active, assign the reference, then remove scene2, then write the file, the reference will be serialized as null, because that is the value at the time of writing.
-Also, if you do all the steps in the second test, then remove scene2, then load it again, the reference will no longer be restored automatically, as it has already been remove from the PendingReferences system.
+Now, the limitations. 
+If you have both scenes active, assign the reference, then remove scene2, then write the file, the reference will be serialized as null, because that is the value at the time of writing.

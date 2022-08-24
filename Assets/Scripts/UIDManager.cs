@@ -104,19 +104,21 @@ namespace Persyst{
         
 
         Dictionary<ulong, List<PendingReference>> pendingReferences = new Dictionary<ulong, List<PendingReference>>();
-        public void registerPendingReference(object holder, ulong _uid, MemberInfo fieldInfo){
-            if(holder.GetType().IsValueType)
+        public void registerPendingReference(object holder, ulong _uid, MemberInfo memberInfo){
+            if(holder.GetType().IsValueType){
+                Debug.LogWarning("Serializing references inside structs is not a good idea! The \"pending references\" system wont handle them if they are not valid at the time of loading.");
                 return;
-
+            }
+            
             if( !pendingReferences.TryGetValue(_uid, out List<PendingReference> references) ){
                 references = new List<PendingReference>();
             }
-            references.Add(new PendingReference(holder, fieldInfo));
+            references.Add(new PendingReference(holder, memberInfo));
             pendingReferences[_uid] = references;
         }
         
 
-
+        //for logging, as the unity inspector displays ulongs as if they were longs
         long reinterpretAsLong(ulong value){
             byte[] bytes = BitConverter.GetBytes(value);
             return (long) System.BitConverter.ToInt64(bytes, 0);

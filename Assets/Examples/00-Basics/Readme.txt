@@ -12,7 +12,7 @@ The last thing in there is a "BasicsTest" script. It's just a MonoBehaviour that
 
 To test the basic functionality:
 
-Enter Play Mode, assign values to the fields of of each BasicsTest through the inspector, and then hit the "Write" button on the GameSaver.
+Enter Play Mode, assign values to the fields of each BasicsTest through the inspector, and then hit the "Write" button on the GameSaver.
 That will create a json file in the Assets folder (you can customize the path when calling the write function through code).
 
 Now, exit Play Mode. The values will reset to nothing (oh no!).
