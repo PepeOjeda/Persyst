@@ -71,7 +71,8 @@ namespace Persyst{
             Dictionary<string, JRaw> jsonDict = new Dictionary<string, JRaw>();
 
             var members = script.GetType().GetMembers(bindingFlags).Where(member => member.IsDefined(typeof(SaveThis)) );
-            
+            jsonDict["class"] = new JRaw($"\"{script.GetType().AssemblyQualifiedName}\"");
+
             foreach(MemberInfo memberInfo in members){
                jsonDict[memberInfo.Name] = serializeMember(ReflectionUtilities.getValue(memberInfo, script));
             }
@@ -189,13 +190,20 @@ namespace Persyst{
                 Type type = Type.GetType(entry.Key);
                 MethodInfo method =  typeof(GameObject).GetMethod("GetComponent", 1, new Type[]{}).MakeGenericMethod(type);
                 object script = method.Invoke(gameObject, new object[]{});
-                DeserializeScript(ref script, entry.Value);
+                if(script==null)
+                    script = typeof(GameObject).GetMethod("AddComponent", 1, new Type[]{}).MakeGenericMethod(type).Invoke(gameObject, new object[]{});
+                DeserializeISavable(ref script, entry.Value);
             }
         }
 
-        void DeserializeScript(ref object script, JRaw jsonString){
+        void DeserializeISavable(ref object script, JRaw jsonString){
             Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
-            Type scriptType = script.GetType();
+            string typeName = JsonConvert.DeserializeObject<string>( jsonDict["class"].ToString() );
+            Type scriptType = Type.GetType(typeName);
+            jsonDict.Remove("class");
+
+            if(script == null || scriptType != script.GetType() )
+                script = Activator.CreateInstance(scriptType);
 
             foreach(KeyValuePair<string, JRaw> entry in jsonDict){ 
                 MemberInfo memberInfo = scriptType.GetMember(entry.Key, bindingFlags)[0];
@@ -239,9 +247,7 @@ namespace Persyst{
         object DeserializeValue(Type variableType, object currentValue, JRaw jraw){
 
             if(variableType.GetInterfaces().Contains(typeof(ISaveable))){
-                if(currentValue == null)
-                    currentValue = Activator.CreateInstance(variableType);
-                DeserializeScript(ref currentValue, jraw); //recursion!
+                DeserializeISavable(ref currentValue, jraw); //recursion!
                 return currentValue;
             }
             else if( variableType.GetInterfaces().Contains(typeof(ICollection)) ){
@@ -283,7 +289,7 @@ namespace Persyst{
             object value;
             if(elementType.GetInterfaces().Contains(typeof(ISaveable))){
                 value = Activator.CreateInstance(elementType);
-                DeserializeScript(ref value, jrawElement);
+                DeserializeISavable(ref value, jrawElement);
             }
             else
                 value = DeserializeValue(elementType, null, jrawElement);
