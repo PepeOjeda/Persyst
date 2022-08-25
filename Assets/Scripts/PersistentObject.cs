@@ -16,7 +16,9 @@ namespace Persyst{
         [SerializeField] public ulong myUID;
         [SerializeField] bool assigned=false;
         static BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
-        static JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings{ReferenceLoopHandling = ReferenceLoopHandling.Ignore};
+        static JsonSerializerSettings regularSerializerSettings = new JsonSerializerSettings{ReferenceLoopHandling = ReferenceLoopHandling.Ignore, 
+            ContractResolver = new ForceJSONSerializePrivatesResolver(),
+            TypeNameHandling = TypeNameHandling.All};
 
         void Start(){
             #if UNITY_EDITOR
@@ -61,60 +63,67 @@ namespace Persyst{
             ISaveable[] scriptList = GetComponents<ISaveable>();
 
             foreach(var script in scriptList){
-                savedScripts[script.GetType().ToString()] = serializeScript(script);
+                savedScripts[script.GetType().ToString()] = serializeISaveable(script, script.GetType(), false);
             }
             
             GameSaver.instance.SaveObject(myUID, new JRaw(JsonConvert.SerializeObject(savedScripts, Formatting.Indented)) );
         }
 
-        JRaw serializeScript(object script){
+        JRaw serializeISaveable(object isaveable, Type delaredType, bool asTypeOfInstance){
             Dictionary<string, JRaw> jsonDict = new Dictionary<string, JRaw>();
 
-            var members = script.GetType().GetMembers(bindingFlags).Where(member => member.IsDefined(typeof(SaveThis)) );
-            jsonDict["class"] = new JRaw($"\"{script.GetType().AssemblyQualifiedName}\"");
+            Type typeToUse = asTypeOfInstance? isaveable.GetType() : delaredType;
+            var members = typeToUse.GetMembers(bindingFlags);
+            jsonDict["class"] = new JRaw($"\"{typeToUse.FullName}, {typeToUse.Assembly.GetName().Name}\"");
 
             foreach(MemberInfo memberInfo in members){
-               jsonDict[memberInfo.Name] = serializeMember(ReflectionUtilities.getValue(memberInfo, script));
+                if(  !( memberInfo.IsDefined(typeof(SaveThis)) | memberInfo.IsDefined(typeof(SaveAsInstanceType)) )  )
+                    continue;
+
+                object value = ReflectionUtilities.getValue(memberInfo, isaveable);
+                if( memberInfo.IsDefined(typeof(SaveThis)) )
+                    jsonDict[memberInfo.Name] = serializeMember(value, ReflectionUtilities.GetUnderlyingType(memberInfo), false);
+                else if( memberInfo.IsDefined(typeof(SaveAsInstanceType)) )
+                    jsonDict[memberInfo.Name] = serializeMember(value, value.GetType(), true);
             }
 
-            return new JRaw(JsonConvert.SerializeObject(jsonDict, jsonSerializerSettings));
+            return new JRaw(JsonConvert.SerializeObject(jsonDict));
         }
-        JRaw serializeMember(object value){
+        JRaw serializeMember(object value, Type type, bool asTypeOfInstance){
             if(value==null)
                 return null;
-            Type type = value.GetType();
+
             //serialize reference
             if( type.IsAssignableTo(typeof(UnityEngine.Object)) ){
-                return serializeReference(type, value as UnityEngine.Object);
+                return serializeReference(value as UnityEngine.Object);
             }
 
             //serialize value
             else 
-                return serializeValue(type, value);
+                return serializeValue(type, value, asTypeOfInstance);
         }
 
-        JRaw serializeValue(Type type, object value){
+        JRaw serializeValue(Type type, object value, bool asTypeOfInstance){
             if( type.GetInterfaces().Contains(typeof(ISaveable)) ){
-                return new JRaw(serializeScript(value)); //recursion!
+                return new JRaw(serializeISaveable(value, type, asTypeOfInstance) ); //recursion!
             }
             else if(type.GetInterfaces().Contains(typeof(ICollection))){
-                return serializeCollection(value as ICollection);
+                return serializeCollection(value as ICollection, type, asTypeOfInstance);
             }
             else{
-                return new JRaw( JsonConvert.SerializeObject(value, jsonSerializerSettings));
+                return new JRaw( JsonConvert.SerializeObject(value, regularSerializerSettings));
             }
         }
 
-        JRaw serializeCollection(ICollection collection){
+        JRaw serializeCollection(ICollection collection, Type collectionType, bool asTypeOfInstance){
             if(collection == null)
                 return null;
-            Type type = collection.GetType();
             
-            if((type.IsConstructedGenericType && 
-                    type.GetGenericArguments().Any(t => t.IsAssignableTo(typeof(UnityEngine.Object)) )  
+            if((collectionType.IsConstructedGenericType && 
+                    collectionType.GetGenericArguments().Any(t => t.IsAssignableTo(typeof(UnityEngine.Object)) )  
                 )
                 ||
-                type.IsArray && type.GetElementType().IsAssignableTo(typeof(UnityEngine.Object))
+                collectionType.IsArray && collectionType.GetElementType().IsAssignableTo(typeof(UnityEngine.Object))
             ){
                 Debug.LogError("Collections of UnityEngine.Object are not supported. You can get around this by using an ISaveable wrapper (e.g. List<RefWrapper<GameObject>>");
                 return null;
@@ -124,13 +133,16 @@ namespace Persyst{
             bool firstElement=true; //for commas
 
             //dictionaries and lists of keyValuePairs
-            if( type.IsConstructedGenericType && 
+            if( collectionType.IsConstructedGenericType && 
                     (
-                        type.GetInterfaces().Contains(typeof(IDictionary))
+                        collectionType.GetInterfaces().Contains(typeof(IDictionary))
                         ||
-                        type.GenericTypeArguments.Any(t => t.isConstructedFrom(typeof(KeyValuePair<,>)) )
+                        collectionType.GenericTypeArguments.Any(t => t.isConstructedFrom(typeof(KeyValuePair<,>)) )
                     ) 
             ){
+                
+                Type typeOfKey = collectionType.GetGenericArguments()[0];
+                Type typeOfValue = collectionType.GetGenericArguments()[1];
                 sb.Append("[");
                 foreach(object entry in collection){
                     if(!firstElement)
@@ -139,19 +151,20 @@ namespace Persyst{
 
                     object Key = entry.GetType().GetProperty("Key").GetValue(entry);
                     object Value = entry.GetType().GetProperty("Value").GetValue(entry);
-                    sb.Append("{\"Key\":"+serializeMember(Key)+",");
-                    sb.Append("\"Value\":"+serializeMember(Value)+"}");
+                    sb.Append("{\"Key\":"+serializeMember(Key, typeOfKey, asTypeOfInstance)+",");
+                    sb.Append("\"Value\":"+serializeMember(Value, typeOfValue, asTypeOfInstance)+"}");
                 }
                 sb.Append("]");
             }
             //lists, sets, stacks, etc
             else{
+                Type elementType = collectionType.IsArray? collectionType.GetElementType() : collectionType.GetGenericArguments()[0];
                 sb.Append("[");
                 foreach(object element in collection){
                     if(!firstElement)
                         sb.Append(",");
                     firstElement = false;
-                    sb.Append(serializeMember(element));
+                    sb.Append(serializeMember(element, elementType, asTypeOfInstance));
                 }
                 sb.Append("]");
             }
@@ -159,11 +172,13 @@ namespace Persyst{
             return new JRaw(sb.ToString());
         }
 
-        JRaw serializeReference(Type type, UnityEngine.Object value){
+        JRaw serializeReference(UnityEngine.Object value){
             if(value == null){
                 return null;
             }
-            else if( type.IsAssignableTo(typeof(UnityEngine.Component)) || type.IsAssignableTo(typeof(GameObject)) ){
+
+            Type type = value.GetType();
+            if( type.IsAssignableTo(typeof(UnityEngine.Component)) || type.IsAssignableTo(typeof(GameObject)) ){
                 MethodInfo method =  type.GetMethod("GetComponent", 1, new Type[]{}).MakeGenericMethod(typeof(PersistentObject));
                 PersistentObject persistentObject = (PersistentObject) method.Invoke(value, new object[]{});
                 ulong uid = persistentObject.myUID;
