@@ -14,17 +14,14 @@ namespace Persyst{
     public class PersistentObject : MonoBehaviour
     {
         [SerializeField] public ulong myUID;
-        [SerializeField] bool assigned=false;
+        [SerializeField][HideInInspector] bool assigned=false;
         static BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
         static JsonSerializerSettings regularSerializerSettings = new JsonSerializerSettings{ReferenceLoopHandling = ReferenceLoopHandling.Ignore, 
             ContractResolver = new ForceJSONSerializePrivatesResolver(),
             TypeNameHandling = TypeNameHandling.All};
 
         void Start(){
-            #if UNITY_EDITOR
-            if(UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() !=null) //dont automatically assign a UID to the prefab itself when you open it 
-                return;
-            #endif
+            
 
             if(assigned){
                 UIDManager.instance.refreshReference(gameObject, myUID);
@@ -35,7 +32,15 @@ namespace Persyst{
                 return;
             }
             myUID=UIDManager.instance.generateUID(gameObject);
-            assigned=true;
+            
+            bool shouldsetAssigned = true;
+
+            #if UNITY_EDITOR
+            shouldsetAssigned = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() == null; //don't set the "assigned" flag if opening a prefab asset
+            #endif
+
+            if(shouldsetAssigned)
+                assigned=true;
 
         }
 
@@ -214,14 +219,24 @@ namespace Persyst{
         void DeserializeISavable(ref object script, JRaw jsonString){
             Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
             string typeName = JsonConvert.DeserializeObject<string>( jsonDict["class"].ToString() );
-            Type scriptType = Type.GetType(typeName);
+            Type serializedType = Type.GetType(typeName);
             jsonDict.Remove("class");
 
-            if(script == null || scriptType != script.GetType() )
-                script = Activator.CreateInstance(scriptType);
+            //if the object was serialized with a type that's different from the type of its current value, create a new one of the serialized type
+            //this is a slightly dangerous thing, because it means you can potentially lose information that you had already assigned to the object prior to loading the save file
+            //but the alternative is worse, so.
+            if(script == null || serializedType != script.GetType() ) 
+                script = Activator.CreateInstance(serializedType);
 
             foreach(KeyValuePair<string, JRaw> entry in jsonDict){ 
-                MemberInfo memberInfo = scriptType.GetMember(entry.Key, bindingFlags)[0];
+                MemberInfo memberInfo = null;
+                try{
+                    memberInfo = serializedType.GetMember(entry.Key, bindingFlags)[0];
+                }catch(Exception)
+                {
+                    Debug.LogError($"Serialized member \"{entry.Key}\" not found on type \"{serializedType}\". Ignoring it.");
+                    continue;
+                }
                 object value = DeserializeMember(ref script, memberInfo, entry.Value);
                 ReflectionUtilities.setValue(memberInfo, script, value);
             }
