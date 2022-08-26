@@ -132,8 +132,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 483573499}
-  - component: {fileID: 483573498}
-  - component: {fileID: 483573497}
+  - component: {fileID: 483573501}
+  - component: {fileID: 483573500}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -141,36 +141,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &483573497
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 483573496}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8dfa2f0d514ced240845ea0731d0f86f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &483573498
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 483573496}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 852c4f2aeed0f6347806b3b317134a86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  UIDs:
-    m_Keys: 9e65b7367a238438784dc109eeadef67
-    m_Values:
-    - {fileID: 0}
-    - {fileID: 0}
-  initialized: 1
 --- !u!4 &483573499
 Transform:
   m_ObjectHideFlags: 0
@@ -186,3 +156,33 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &483573500
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 483573496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 505f73b8e894bf744be9bacd3e1c646e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &483573501
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 483573496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 730d0c6e96239a545af4e54ee1d2e2da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  UIDs:
+    m_Keys: 58df9cace8fcbc96618a539acb51c2ac
+    m_Values:
+    - {fileID: 0}
+    - {fileID: 0}
+  initialized: 1

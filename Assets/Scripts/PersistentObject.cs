@@ -20,15 +20,28 @@ namespace Persyst{
             ContractResolver = new ForceJSONSerializePrivatesResolver(),
             TypeNameHandling = TypeNameHandling.All};
 
-        void Start(){
-            
+		bool initializeOnStart = false;
+		public PersistentObject(){
+			if(UIDManager.instance!=null)
+				initializeOnStart = true;
+			else
+				UIDManager.OnManagerAvailable += Initialize;
+		}
 
+		void Start(){
+			if(initializeOnStart)
+				Initialize();
+		}
+
+		//you can call tthis manually if the gameObject starts disabled and you need a reference to it
+        public void Initialize(){
+			UIDManager.OnManagerAvailable -= Initialize;
             if(assigned){
                 UIDManager.instance.refreshReference(gameObject, myUID);
                 if(GameSaver.instance!=null && GameSaver.instance.isFileLoaded)
-                    Initialize();
+                    LoadAllData();
 
-                GameSaver.OnSaveFileLoaded += Initialize;
+                GameSaver.OnSaveFileLoaded += LoadAllData;
                 return;
             }
             myUID=UIDManager.instance.generateUID(gameObject);
@@ -41,11 +54,10 @@ namespace Persyst{
 
             if(shouldsetAssigned)
                 assigned=true;
-
         }
 
-        void Initialize(){
-            if(Application.isPlaying)
+        void LoadAllData(){
+            if(Application.isPlaying && this != null)
                 LoadObject(GameSaver.instance.RetrieveObject(myUID));
         }
 
@@ -68,7 +80,8 @@ namespace Persyst{
             ISaveable[] scriptList = GetComponents<ISaveable>();
 
             foreach(var script in scriptList){
-                savedScripts[script.GetType().ToString()] = serializeISaveable(script, script.GetType(), false);
+                string typeName = $"{script.GetType().FullName}, {script.GetType().Assembly.GetName().Name}";
+                savedScripts[typeName] = serializeISaveable(script, script.GetType(), false);
             }
             
             GameSaver.instance.SaveObject(myUID, new JRaw(JsonConvert.SerializeObject(savedScripts, Formatting.Indented)) );

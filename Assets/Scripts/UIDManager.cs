@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 #if UNITY_EDITOR
@@ -13,7 +14,17 @@ namespace Persyst{
     public class UIDManager : MonoBehaviour
     {
         public static UIDManager instance;
-        public static event System.Action OnManagerAvailable;
+        public static event System.Action OnManagerAvailable{
+			add{
+				if(_OnManagerAvailable == null || !_OnManagerAvailable.GetInvocationList().Contains(value) ) //can subscribe only once
+					_OnManagerAvailable += value;
+			}
+			remove{
+				_OnManagerAvailable -= value;
+			}
+		}
+
+		private static event System.Action _OnManagerAvailable;
 
         System.Random random;
         [SerializeField] SerializedDictionary<ulong, UnityEngine.Object> UIDs;
@@ -31,7 +42,7 @@ namespace Persyst{
 
             instance = this; 
             random = new System.Random();
-            OnManagerAvailable?.Invoke();
+            _OnManagerAvailable?.Invoke();
             if(initialized)
                 return; 
             initialized = true;       

@@ -6,7 +6,7 @@ using Newtonsoft.Json.Linq;
 using System.IO;
 
 namespace Persyst{
-    [DefaultExecutionOrder(-10)]
+    [DefaultExecutionOrder(-10)][ExecuteInEditMode]
     public class GameSaver : MonoBehaviour
     {
         public static GameSaver instance;
@@ -15,7 +15,7 @@ namespace Persyst{
         Dictionary<ulong, JRaw> jsonDictionary;
 
         [System.NonSerialized] public bool isFileLoaded;
-        void Start()
+        void OnEnable()
         {
             if(instance!=null && instance!=this){
                 Destroy(instance);
@@ -30,7 +30,7 @@ namespace Persyst{
         }
 
         public JRaw RetrieveObject(ulong UID){
-            if(!Application.isPlaying)
+            if(!isFileLoaded)
                 return null;
 
             if(jsonDictionary.TryGetValue(UID, out JRaw value))
@@ -40,7 +40,7 @@ namespace Persyst{
         }
 
         [NaughtyAttributes.Button("Read")]
-        void readFile(string path = "Assets/saveFile.json"){
+        public void readFile(string path = "Assets/saveFile.json", bool fireLoadEvent = true){
             string allText="{}";
             if(File.Exists(path))
                 allText = File.ReadAllText(path);
@@ -49,18 +49,14 @@ namespace Persyst{
             jsonDictionary = JsonConvert.DeserializeObject<Dictionary<ulong,JRaw>>(allText);
 
             isFileLoaded = true;
-            OnSaveFileLoaded?.Invoke();
+            if(fireLoadEvent)
+                OnSaveFileLoaded?.Invoke();
         }
 
         public static event System.Action saveTheGame;
 
         [NaughtyAttributes.Button("Write")]
-        void writeToFile(string path = "Assets/saveFile.json"){
-            if(!Application.isPlaying){
-                Debug.Log("Can only save during play mode");
-                return;
-            }
-
+        public void writeToFile(string path = "Assets/saveFile.json"){
             saveTheGame?.Invoke();
             string jsonString = JsonConvert.SerializeObject(jsonDictionary);
             File.WriteAllText(path, jsonString);
