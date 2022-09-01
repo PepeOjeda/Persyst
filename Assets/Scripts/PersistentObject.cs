@@ -14,11 +14,51 @@ namespace Persyst{
     public class PersistentObject : MonoBehaviour
     {
         [SerializeField] public ulong myUID;
+		[SerializeField] bool loadAutomatically=true;
+		[SerializeField] bool saveAutomatically=true;
         [SerializeField][HideInInspector] bool assigned=false;
         static BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
         static JsonSerializerSettings regularSerializerSettings = new JsonSerializerSettings{ReferenceLoopHandling = ReferenceLoopHandling.Ignore, 
             ContractResolver = new ForceJSONSerializePrivatesResolver(),
             TypeNameHandling = TypeNameHandling.All};
+
+		
+		
+        public void registerCustomSaveEvent(System.EventHandler eventHandler){
+			eventHandler += saveCallback;
+		}
+
+		public void removeCustomSaveEvent(System.EventHandler eventHandler){
+			eventHandler -= saveCallback;
+		}
+
+		public void registerCustomLoadEvent(System.EventHandler eventHandler){
+			eventHandler += loadCallback;
+		}
+		public void removeCustomLoadEvent(System.EventHandler eventHandler){
+			eventHandler -= loadCallback;
+		}
+
+        public void SaveObject(){
+            Dictionary<string,JRaw> savedScripts = new Dictionary<string, JRaw>();
+            ISaveable[] scriptList = GetComponents<ISaveable>();
+
+            foreach(var script in scriptList){
+                string typeName = $"{script.GetType().FullName}, {script.GetType().Assembly.GetName().Name}";
+                savedScripts[typeName] = serializeISaveable(script, script.GetType(), false);
+            }
+            
+            GameSaver.instance.SaveObject(myUID, new JRaw(JsonConvert.SerializeObject(savedScripts, Formatting.Indented)) );
+        }
+
+        
+		public void LoadObject(){
+            if(Application.isPlaying && this != null)
+                LoadJson(GameSaver.instance.RetrieveObject(myUID));
+        }
+
+
+
 
 		bool initializeOnStart = false;
 		public PersistentObject(){
@@ -38,10 +78,12 @@ namespace Persyst{
 			UIDManager.OnManagerAvailable -= Initialize;
             if(assigned){
                 UIDManager.instance.refreshReference(gameObject, myUID);
-                if(GameSaver.instance!=null && GameSaver.instance.isFileLoaded)
-                    LoadAllData();
+				if(loadAutomatically){
+					if(GameSaver.instance!=null && GameSaver.instance.isFileLoaded)
+                    LoadObject();
 
-                GameSaver.OnSaveFileLoaded += LoadAllData;
+                	GameSaver.OnSaveFileLoaded += LoadObject;
+				}
                 return;
             }
             myUID=UIDManager.instance.generateUID(gameObject);
@@ -56,37 +98,32 @@ namespace Persyst{
                 assigned=true;
         }
 
-        void LoadAllData(){
-            if(Application.isPlaying && this != null)
-                LoadObject(GameSaver.instance.RetrieveObject(myUID));
-        }
+        
 
         void OnEnable(){
-            GameSaver.saveTheGame += SaveObject;
+			if(saveAutomatically)
+            	GameSaver.saveTheGame += SaveObject;
         }
+
         void OnDestroy(){
-            GameSaver.saveTheGame -= SaveObject;
-            if(!Application.isPlaying && gameObject.scene.isLoaded){
+            if(saveAutomatically)
+				GameSaver.saveTheGame -= SaveObject;
+            
+			if(!Application.isPlaying && gameObject.scene.isLoaded){
                 UIDManager.instance.removeUID(myUID);
                 assigned = false;
             }
         }
-
         
+		void saveCallback(object sender, System.EventArgs args){
+			SaveObject();
+		}
+		void loadCallback(object sender, System.EventArgs args){
+			LoadObject();
+		}
+
 
         //Saving
-        void SaveObject(){
-            Dictionary<string,JRaw> savedScripts = new Dictionary<string, JRaw>();
-            ISaveable[] scriptList = GetComponents<ISaveable>();
-
-            foreach(var script in scriptList){
-                string typeName = $"{script.GetType().FullName}, {script.GetType().Assembly.GetName().Name}";
-                savedScripts[typeName] = serializeISaveable(script, script.GetType(), false);
-            }
-            
-            GameSaver.instance.SaveObject(myUID, new JRaw(JsonConvert.SerializeObject(savedScripts, Formatting.Indented)) );
-        }
-
         JRaw serializeISaveable(object isaveable, Type delaredType, bool asTypeOfInstance){
             Dictionary<string, JRaw> jsonDict = new Dictionary<string, JRaw>();
 
@@ -210,11 +247,8 @@ namespace Persyst{
             return null;
         }
 
-        
-
-
         //Loading
-        public void LoadObject(JRaw jsonString){
+        void LoadJson(JRaw jsonString){
             if(jsonString==null)
                 return;
             Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
@@ -339,6 +373,6 @@ namespace Persyst{
             
             return value;
         }
-        
+
     }
 }

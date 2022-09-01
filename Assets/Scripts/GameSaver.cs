@@ -56,8 +56,9 @@ namespace Persyst{
         public static event System.Action saveTheGame;
 
         [NaughtyAttributes.Button("Write")]
-        public void writeToFile(string path = "Assets/saveFile.json"){
-            saveTheGame?.Invoke();
+        public void writeToFile(string path = "Assets/saveFile.json", bool fireSaveEvent = true){
+            if(fireSaveEvent)
+				saveTheGame?.Invoke();
             string jsonString = JsonConvert.SerializeObject(jsonDictionary);
             File.WriteAllText(path, jsonString);
         }
