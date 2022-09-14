@@ -39,11 +39,13 @@ namespace Persyst{
 			eventHandler -= loadCallback;
 		}
 
+		List<ISaveable> currentSaveableTrace;
         public void SaveObject(){
             Dictionary<string,JRaw> savedScripts = new Dictionary<string, JRaw>();
             ISaveable[] scriptList = GetComponents<ISaveable>();
 
             foreach(var script in scriptList){
+				currentSaveableTrace = new List<ISaveable>();
                 string typeName = $"{script.GetType().FullName}, {script.GetType().Assembly.GetName().Name}";
                 savedScripts[typeName] = serializeISaveable(script, script.GetType(), false);
             }
@@ -73,7 +75,6 @@ namespace Persyst{
 				Initialize();
 		}
 
-		//you can call tthis manually if the gameObject starts disabled and you need a reference to it
         public void Initialize(){
 			UIDManager.OnManagerAvailable -= Initialize;
             if(assigned){
@@ -102,12 +103,12 @@ namespace Persyst{
 
         void OnEnable(){
 			if(saveAutomatically)
-            	GameSaver.saveTheGame += SaveObject;
+            	GameSaver.OnSavingGame += SaveObject;
         }
 
         void OnDestroy(){
             if(saveAutomatically)
-				GameSaver.saveTheGame -= SaveObject;
+				GameSaver.OnSavingGame -= SaveObject;
             
 			if(!Application.isPlaying && gameObject.scene.isLoaded){
                 UIDManager.instance.removeUID(myUID);
@@ -122,9 +123,16 @@ namespace Persyst{
 			LoadObject();
 		}
 
-
         //Saving
-        JRaw serializeISaveable(object isaveable, Type delaredType, bool asTypeOfInstance){
+        JRaw serializeISaveable(ISaveable isaveable, Type delaredType, bool asTypeOfInstance){
+			if( currentSaveableTrace.Any(x=> !x.GetType().IsValueType && object.ReferenceEquals(x, isaveable)) ){
+				//Reference Loop!
+				Debug.LogWarning($"Reference loop detected in object {isaveable}. Setting reference to null.");
+				return new JRaw("null");
+			}
+
+			currentSaveableTrace.Add(isaveable);
+
             Dictionary<string, JRaw> jsonDict = new Dictionary<string, JRaw>();
 
             Type typeToUse = asTypeOfInstance? isaveable.GetType() : delaredType;
@@ -142,6 +150,7 @@ namespace Persyst{
                     jsonDict[memberInfo.Name] = serializeMember(value, value.GetType(), true);
             }
 
+			currentSaveableTrace.Remove(isaveable);
             return new JRaw(JsonConvert.SerializeObject(jsonDict));
         }
         JRaw serializeMember(object value, Type type, bool asTypeOfInstance){
@@ -160,7 +169,7 @@ namespace Persyst{
 
         JRaw serializeValue(Type type, object value, bool asTypeOfInstance){
             if( type.GetInterfaces().Contains(typeof(ISaveable)) ){
-                return new JRaw(serializeISaveable(value, type, asTypeOfInstance) ); //recursion!
+                return new JRaw(serializeISaveable(value as ISaveable, type, asTypeOfInstance) ); //recursion!
             }
             else if(type.GetInterfaces().Contains(typeof(ICollection))){
                 return serializeCollection(value as ICollection, type, asTypeOfInstance);

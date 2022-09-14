@@ -10,7 +10,6 @@ namespace Persyst{
     public class GameSaver : MonoBehaviour
     {
         public static GameSaver instance;
-        public static event System.Action OnSaveFileLoaded;
 
         Dictionary<ulong, JRaw> jsonDictionary;
 
@@ -25,11 +24,11 @@ namespace Persyst{
             jsonDictionary = new Dictionary<ulong, JRaw>();
         }
 
-        public void SaveObject(ulong UID, JRaw value){
+        internal void SaveObject(ulong UID, JRaw value){
             jsonDictionary[UID] = value;
         }
 
-        public JRaw RetrieveObject(ulong UID){
+        internal JRaw RetrieveObject(ulong UID){
             if(!isFileLoaded)
                 return null;
 
@@ -39,6 +38,7 @@ namespace Persyst{
                 return null;
         }
 
+        public static event System.Action OnSaveFileLoaded;
         [NaughtyAttributes.Button("Read")]
         public void readFile(string path = "Assets/saveFile.json", bool fireLoadEvent = true){
             string allText="{}";
@@ -53,12 +53,12 @@ namespace Persyst{
                 OnSaveFileLoaded?.Invoke();
         }
 
-        public static event System.Action saveTheGame;
+        public static event System.Action OnSavingGame;
 
         [NaughtyAttributes.Button("Write")]
         public void writeToFile(string path = "Assets/saveFile.json", bool fireSaveEvent = true){
             if(fireSaveEvent)
-				saveTheGame?.Invoke();
+				OnSavingGame?.Invoke();
             string jsonString = JsonConvert.SerializeObject(jsonDictionary);
             File.WriteAllText(path, jsonString);
         }

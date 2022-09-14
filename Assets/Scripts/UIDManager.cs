@@ -48,7 +48,7 @@ namespace Persyst{
             initialized = true;       
         }
 
-        public ulong generateUID(UnityEngine.Object unityObject){
+        internal ulong generateUID(UnityEngine.Object unityObject){
             byte[] buf = new byte[8]; 
             ulong value;
             do{
@@ -77,12 +77,12 @@ namespace Persyst{
             return null;
         }
 
-        public void removeUID(ulong _uid){
+        internal void removeUID(ulong _uid){
             UIDs.Remove(_uid);
         }
 
         //called by the presistentObject when it is loaded
-        public void refreshReference(UnityEngine.Object unityObject, ulong _uid){
+        internal void refreshReference(UnityEngine.Object unityObject, ulong _uid){
             UIDs[_uid]=unityObject;
 
             //if some object was waiting for this one to be loaded, pass it a reference
@@ -115,7 +115,7 @@ namespace Persyst{
         
 
         Dictionary<ulong, List<PendingReference>> pendingReferences = new Dictionary<ulong, List<PendingReference>>();
-        public void registerPendingReference(object holder, ulong _uid, MemberInfo memberInfo){
+        internal void registerPendingReference(object holder, ulong _uid, MemberInfo memberInfo){
             if(holder.GetType().IsValueType){
                 Debug.LogWarning("Serializing references inside structs is not a good idea! The \"pending references\" system wont handle them if they are not valid at the time of loading.");
                 return;
