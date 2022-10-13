@@ -30,7 +30,7 @@ namespace Persyst{
         [SerializeField] SerializedDictionary<ulong, UnityEngine.Object> UIDs;
         UIDManager inst => instance;
         
-        void OnEnable(){
+        void Start(){
             Initialize(); 
         }
 

@@ -14,8 +14,8 @@ namespace Persyst{
     public class PersistentObject : MonoBehaviour
     {
         [SerializeField] public ulong myUID;
-		[SerializeField] bool loadAutomatically=true;
-		[SerializeField] bool saveAutomatically=true;
+		[SerializeField] bool loadAutomatically = true;
+		[SerializeField] bool saveAutomatically = true;
         [SerializeField][HideInInspector] bool assigned=false;
         static BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
         static JsonSerializerSettings regularSerializerSettings = new JsonSerializerSettings{ReferenceLoopHandling = ReferenceLoopHandling.Ignore, 
@@ -63,13 +63,13 @@ namespace Persyst{
 
 
 		bool initializeOnStart = false;
-		public PersistentObject(){
+
+		void Awake(){
 			if(UIDManager.instance!=null)
 				initializeOnStart = true;
 			else
 				UIDManager.OnManagerAvailable += Initialize;
 		}
-
 		void Start(){
 			if(initializeOnStart)
 				Initialize();
@@ -81,7 +81,7 @@ namespace Persyst{
                 UIDManager.instance.refreshReference(gameObject, myUID);
 				if(loadAutomatically){
 					if(GameSaver.instance!=null && GameSaver.instance.isFileLoaded)
-                    LoadObject();
+                    	LoadObject();
 
                 	GameSaver.OnSaveFileLoaded += LoadObject;
 				}
