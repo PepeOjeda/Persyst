@@ -7,7 +7,7 @@
 Assets/Plugins
 Assets/saveFile.json
 
-*.meta
+.meta
 
 !LICENSE
 !README.md

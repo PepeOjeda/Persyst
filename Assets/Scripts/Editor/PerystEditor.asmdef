@@ -1,0 +1,18 @@
+{
+    "name": "PerystEditor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:b5b99bb3b98b1ff4daccad6ad5e8c188"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
