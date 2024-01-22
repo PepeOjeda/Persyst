@@ -69,7 +69,7 @@ namespace Persyst
                     currentSaveableTrace = new List<ISaveable>();
                     string typeName = $"{script.GetType().FullName}, {script.GetType().Assembly.GetName().Name}";
                     writer.WritePropertyName($"{typeName}");
-                    writer.WriteRawValue(SerializeObjectInternal(serializeISaveable(script, script.GetType(), false), typeof(JRaw), jsonSerializer));
+                    writer.WriteRawValue(serializeISaveable(script, script.GetType(), false).ToString());
                 }
                 writer.WriteEndObject();
 
@@ -192,12 +192,12 @@ namespace Persyst
                     if (memberInfo.IsDefined(typeof(SaveThis)))
                     {
                         writer.WritePropertyName($"{memberInfo.Name}");
-                        writer.WriteRawValue(SerializeObjectInternal(serializeMember(value, ReflectionUtilities.GetUnderlyingType(memberInfo), false), typeof(JRaw), jsonSerializer));
+                        writer.WriteRawValue(serializeMember(value, ReflectionUtilities.GetUnderlyingType(memberInfo), false).ToString());
                     }
                     else if (memberInfo.IsDefined(typeof(SaveAsInstanceType)))
                     {
                         writer.WritePropertyName($"{memberInfo.Name}");
-                        writer.WriteRawValue(SerializeObjectInternal(serializeMember(value, value.GetType(), true), typeof(JRaw), jsonSerializer));
+                        writer.WriteRawValue(serializeMember(value, value.GetType(), true).ToString());
                     }
                 }
 
