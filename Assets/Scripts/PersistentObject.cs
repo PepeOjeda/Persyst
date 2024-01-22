@@ -67,12 +67,9 @@ namespace Persyst
                 {
                     ISaveable script = scriptList[i];
                     currentSaveableTrace = new List<ISaveable>();
-                    if(i>0)
-                        writer.WriteRaw(",");
-
                     string typeName = $"{script.GetType().FullName}, {script.GetType().Assembly.GetName().Name}";
-                    writer.WriteRaw($"\"{typeName}\":");
-                    writer.WriteRaw(SerializeObjectInternal(serializeISaveable(script, script.GetType(), false), typeof(JRaw), jsonSerializer));
+                    writer.WritePropertyName($"{typeName}");
+                    writer.WriteRawValue(SerializeObjectInternal(serializeISaveable(script, script.GetType(), false), typeof(JRaw), jsonSerializer));
                 }
                 writer.WriteEndObject();
 
@@ -183,8 +180,8 @@ namespace Persyst
             {
                 writer.Formatting = jsonSerializer.Formatting;
                 writer.WriteStartObject();
-                writer.WriteRaw("\"class\":");
-                writer.WriteRaw($"\"{typeToUse.FullName}, {typeToUse.Assembly.GetName().Name}\"");
+                writer.WritePropertyName("class");
+                writer.WriteRawValue($"\"{typeToUse.FullName}, {typeToUse.Assembly.GetName().Name}\"");
             
                 void processMember(MemberInfo memberInfo)
                 {
@@ -194,13 +191,13 @@ namespace Persyst
                     object value = ReflectionUtilities.getValue(memberInfo, isaveable);
                     if (memberInfo.IsDefined(typeof(SaveThis)))
                     {
-                        writer.WriteRaw($",\"{memberInfo.Name}\":");
-                        writer.WriteRaw(SerializeObjectInternal(serializeMember(value, ReflectionUtilities.GetUnderlyingType(memberInfo), false), typeof(JRaw), jsonSerializer));
+                        writer.WritePropertyName($"{memberInfo.Name}");
+                        writer.WriteRawValue(SerializeObjectInternal(serializeMember(value, ReflectionUtilities.GetUnderlyingType(memberInfo), false), typeof(JRaw), jsonSerializer));
                     }
                     else if (memberInfo.IsDefined(typeof(SaveAsInstanceType)))
                     {
-                        writer.WriteRaw($",\"{memberInfo.Name}\":");
-                        writer.WriteRaw(SerializeObjectInternal(serializeMember(value, value.GetType(), true), typeof(JRaw), jsonSerializer));
+                        writer.WritePropertyName($"{memberInfo.Name}");
+                        writer.WriteRawValue(SerializeObjectInternal(serializeMember(value, value.GetType(), true), typeof(JRaw), jsonSerializer));
                     }
                 }
 

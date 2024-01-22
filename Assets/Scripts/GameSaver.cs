@@ -72,8 +72,8 @@ namespace Persyst
                 path = defaultFilePath;
             if (fireSaveEvent)
                 OnSavingGame?.Invoke();
-            string jsonString = JsonConvert.SerializeObject(jsonDictionary);
-            File.WriteAllText(path, jsonString);
+            //string jsonString = JsonConvert.SerializeObject(jsonDictionary);
+            //File.WriteAllText(path, jsonString);
         }
 
     }
