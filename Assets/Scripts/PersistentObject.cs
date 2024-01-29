@@ -22,7 +22,6 @@ namespace Persyst
         [SerializeField] public ulong myUID;
         [SerializeField] bool loadAutomatically = true;
         [SerializeField] bool saveAutomatically = true;
-        [SerializeField][HideInInspector] bool assigned = false;
         static BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
         static JsonSerializerSettings regularSerializerSettings = new JsonSerializerSettings
         {
@@ -106,7 +105,12 @@ namespace Persyst
         public void Initialize()
         {
             UIDManager.OnManagerAvailable -= Initialize;
-            if (assigned)
+#if UNITY_EDITOR
+            //don't do anything when opening a prefab
+            if(UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null) 
+                return;
+#endif
+            if (myUID != 0)
             {
                 UIDManager.instance.refreshReference(gameObject, myUID);
                 if (loadAutomatically)
@@ -116,18 +120,9 @@ namespace Persyst
 
                     GameSaver.OnSaveFileLoaded += LoadObject;
                 }
-                return;
             }
-            myUID = UIDManager.instance.generateUID(gameObject);
-
-            bool shouldsetAssigned = true;
-
-#if UNITY_EDITOR
-            shouldsetAssigned = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() == null; //don't set the "assigned" flag if opening a prefab asset
-#endif
-
-            if (shouldsetAssigned)
-                assigned = true;
+            else
+                myUID = UIDManager.instance.generateUID(gameObject);
         }
 
 
@@ -144,10 +139,7 @@ namespace Persyst
                 GameSaver.OnSavingGame -= SaveObject;
 
             if (!Application.isPlaying && gameObject.scene.isLoaded)
-            {
                 UIDManager.instance.removeUID(myUID);
-                assigned = false;
-            }
         }
 
         void saveCallback(object sender, System.EventArgs args)
