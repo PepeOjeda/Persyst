@@ -87,24 +87,13 @@ namespace Persyst
 
 
 
-        bool initializeOnStart = false;
-
         void Awake()
         {
-            if (UIDManager.instance != null)
-                initializeOnStart = true;
-            else
-                UIDManager.OnManagerAvailable += Initialize;
-        }
-        void Start()
-        {
-            if (initializeOnStart)
-                Initialize();
+            Initialize();
         }
 
         public void Initialize()
         {
-            UIDManager.OnManagerAvailable -= Initialize;
 #if UNITY_EDITOR
             //don't do anything when opening a prefab
             if(UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null) 
@@ -125,6 +114,18 @@ namespace Persyst
                 myUID = UIDManager.instance.generateUID(gameObject);
         }
 
+        /// <summary>
+        /// Allows you to set the current value of myUID to map to this object in the UIDManager. 
+        /// This is not something you should use often, just for very special cases that you want 
+        /// to have a particular, easily identifyable UID, or to fix a broken setup
+        /// 
+        /// Can cause weird behaviour if you use it to overwrite an existing UID
+        /// </summary>
+        [NaughtyAttributes.Button("Register UID manually")]
+        void ManualUIDRegister()
+        {
+            UIDManager.instance.refreshReference(gameObject, myUID);
+        }
 
 
         void OnEnable()

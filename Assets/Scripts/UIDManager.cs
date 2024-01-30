@@ -15,8 +15,25 @@ namespace Persyst
     [DefaultExecutionOrder(-100)]
     public class UIDManager : MonoBehaviour
     {
-        public static UIDManager instance;
-        public static event System.Action OnManagerAvailable
+        static UIDManager _instance;
+        public static UIDManager instance
+        {
+            get
+            {
+                if(_instance == null)
+                {
+                    UIDManager existing = FindObjectOfType(typeof(UIDManager)) as UIDManager;
+                    if (existing)
+                    {
+                        _instance = existing;
+                        _instance.Initialize();
+                    }
+                }
+                
+                return _instance;
+            }
+        }
+        public static event Action OnManagerAvailable
         {
             add
             {
@@ -29,32 +46,31 @@ namespace Persyst
             }
         }
 
-        private static event System.Action _OnManagerAvailable;
+        private static event Action _OnManagerAvailable;
 
         System.Random random;
         [SerializeField] SerializedDictionary<ulong, UnityEngine.Object> UIDs;
-        UIDManager inst => instance;
-
-        void Start()
-        {
-            Initialize();
-        }
 
 #if UNITY_EDITOR
         [InitializeOnLoadMethod]
         static void SetupAfterDomainReload()
         {
-            (FindObjectOfType(typeof(UIDManager)) as UIDManager).Initialize();
+            if(!Application.isPlaying)
+            {
+                UIDManager existing = FindObjectOfType(typeof(UIDManager)) as UIDManager;
+                if(existing)
+                    existing.Initialize();
+            }
         }
 #endif
 
 
         void Initialize()
         {
-            if (instance != null && instance != this)
-                Destroy(instance);
+            if (_instance != null && _instance != this)
+                Destroy(_instance);
 
-            instance = this;
+            _instance = this;
             random = new System.Random();
             _OnManagerAvailable?.Invoke();
             Debug.Log("UIDManager initialized");
@@ -73,7 +89,7 @@ namespace Persyst
             UIDs.Add(value, unityObject);
 
 #if UNITY_EDITOR
-            EditorUtility.SetDirty(inst);
+            EditorUtility.SetDirty(_instance);
             EditorSceneManager.MarkSceneDirty(gameObject.scene);
 
             EditorUtility.SetDirty(unityObject);
@@ -169,6 +185,13 @@ namespace Persyst
             bool clearThem = EditorUtility.DisplayDialog("Clear UIDs?", "Are you sure you want to clear all UIDs? This will create problems if you have existing PersistentObjects", "Clear them!", "Cancel");
             if (clearThem)
                 UIDs.Clear();
+        }
+        
+        [SerializeField] ulong UIDtoDelete;
+        [NaughtyAttributes.Button("Delete Entry")]
+        void DeleteEntry()
+        {
+            UIDs.Remove(UIDtoDelete);
         }
 #endif
 
