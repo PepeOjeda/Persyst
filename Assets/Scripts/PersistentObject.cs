@@ -23,13 +23,6 @@ namespace Persyst
         [SerializeField] bool loadAutomatically = true;
         [SerializeField] bool saveAutomatically = true;
         static BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
-        static JsonSerializerSettings regularSerializerSettings = new JsonSerializerSettings
-        {
-            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-            ContractResolver = new ForceJSONSerializePrivatesResolver(),
-            TypeNameHandling = TypeNameHandling.All
-        };
-        JsonSerializer jsonSerializer = JsonSerializer.CreateDefault(regularSerializerSettings);
 
 
 
@@ -58,7 +51,7 @@ namespace Persyst
             StringWriter stringWriter = new StringWriter(new StringBuilder(256), CultureInfo.InvariantCulture);
             using (JsonTextWriter writer = new JsonTextWriter(stringWriter))
             {
-                writer.Formatting = jsonSerializer.Formatting;
+                writer.Formatting = GameSaver.jsonSerializer.Formatting;
                 writer.WriteStartObject();
                 ISaveable[] scriptList = GetComponents<ISaveable>();
 
@@ -171,7 +164,7 @@ namespace Persyst
             StringWriter stringWriter = new StringWriter(new StringBuilder(256), CultureInfo.InvariantCulture);
             using (JsonTextWriter writer = new JsonTextWriter(stringWriter))
             {
-                writer.Formatting = jsonSerializer.Formatting;
+                writer.Formatting = GameSaver.jsonSerializer.Formatting;
                 writer.WriteStartObject();
                 writer.WritePropertyName("class");
                 writer.WriteRawValue($"\"{typeToUse.FullName}, {typeToUse.Assembly.GetName().Name}\"");
@@ -236,7 +229,7 @@ namespace Persyst
             }
             else
             {
-                return new JRaw(SerializeObjectInternal(value, type, jsonSerializer));
+                return new JRaw(SerializeObjectInternal(value, type, GameSaver.jsonSerializer));
             }
         }
 

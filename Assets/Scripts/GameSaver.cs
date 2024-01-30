@@ -4,6 +4,8 @@ using UnityEngine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.IO;
+using System.Text;
+using System.Globalization;
 
 namespace Persyst
 {
@@ -16,6 +18,17 @@ namespace Persyst
         [SerializeField] string defaultFilePath = "Assets/saveFile.json";
 
         Dictionary<ulong, JRaw> jsonDictionary;
+
+
+        
+        public static JsonSerializerSettings regularSerializerSettings = new JsonSerializerSettings
+        {
+            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+            ContractResolver = new ForceJSONSerializePrivatesResolver(),
+            TypeNameHandling = TypeNameHandling.All
+        };
+        public static JsonSerializer jsonSerializer = JsonSerializer.CreateDefault(regularSerializerSettings);
+
 
         [System.NonSerialized] public bool isFileLoaded;
         void OnEnable()
@@ -62,18 +75,35 @@ namespace Persyst
             if (fireLoadEvent)
                 OnSaveFileLoaded?.Invoke();
         }
-
+        
+        
+        public enum Formatting {Raw, Pretty}
         public static event System.Action OnSavingGame;
 
         [NaughtyAttributes.Button("Write")]
-        public void writeToFile(string path = "", bool fireSaveEvent = true)
+        public void writeToFile(string path = "", bool fireSaveEvent = true, Formatting formatting = Formatting.Raw)
         {
             if(path == "")
                 path = defaultFilePath;
             if (fireSaveEvent)
                 OnSavingGame?.Invoke();
-            string jsonString = JsonConvert.SerializeObject(jsonDictionary);
-            File.WriteAllText(path, jsonString);
+
+            StringWriter stringWriter = new StringWriter(new StringBuilder(1000), CultureInfo.InvariantCulture);
+            using (JsonTextWriter writer = new JsonTextWriter(stringWriter))
+            {
+                writer.Formatting = jsonSerializer.Formatting;
+                writer.WriteStartObject();
+                foreach(var pair in jsonDictionary)
+                {
+                    writer.WritePropertyName($"{pair.Key}");
+                    writer.WriteRawValue(pair.Value.ToString());
+                }
+                writer.WriteEndObject();
+                if(formatting == Formatting.Pretty)
+                    File.WriteAllText(path, JToken.Parse(stringWriter.ToString()).ToString());
+                else 
+                    File.WriteAllText(path, stringWriter.ToString());
+            }
         }
 
     }
