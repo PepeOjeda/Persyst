@@ -94,7 +94,7 @@ namespace Persyst
 
             EditorUtility.SetDirty(unityObject);
             if (unityObject.GetType().IsAssignableTo(typeof(GameObject)))
-                EditorUtility.SetDirty((unityObject as GameObject).GetComponent<PersistentObject>());
+                EditorUtility.SetDirty((unityObject as GameObject).GetComponent<IdentifiableObject>());
             if (unityObject is GameObject)
                 EditorSceneManager.MarkSceneDirty((unityObject as GameObject).scene);
 #endif
@@ -182,7 +182,7 @@ namespace Persyst
         [NaughtyAttributes.Button("Clear all entries")]
         void clearAllUIDs()
         {
-            bool clearThem = EditorUtility.DisplayDialog("Clear UIDs?", "Are you sure you want to clear all UIDs? This will create problems if you have existing PersistentObjects", "Clear them!", "Cancel");
+            bool clearThem = EditorUtility.DisplayDialog("Clear UIDs?", "Are you sure you want to clear all UIDs? This will create problems if you have existing IdentifiableObjects", "Clear them!", "Cancel");
             if (clearThem)
                 UIDs.Clear();
         }

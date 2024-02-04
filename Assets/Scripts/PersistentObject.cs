@@ -17,9 +17,8 @@ namespace Persyst
     [ExecuteInEditMode]
     [DefaultExecutionOrder(-1)]
     [DisallowMultipleComponent]
-    public class PersistentObject : MonoBehaviour
+    public class PersistentObject : IdentifiableObject
     {
-        [SerializeField] public ulong myUID;
         [SerializeField] bool loadAutomatically = true;
         [SerializeField] bool saveAutomatically = true;
         static BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance;
@@ -80,60 +79,30 @@ namespace Persyst
 
 
 
-        void Awake()
+        public override void Initialize()
         {
-            Initialize();
-        }
-
-        public void Initialize()
-        {
-#if UNITY_EDITOR
-            //don't do anything when opening a prefab
-            if(UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null) 
-                return;
-#endif
-            if (myUID != 0)
+            base.Initialize();
+            if (loadAutomatically)
             {
-                UIDManager.instance.refreshReference(gameObject, myUID);
-                if (loadAutomatically)
-                {
-                    if (GameSaver.instance != null && GameSaver.instance.isFileLoaded)
-                        LoadObject();
+                if (GameSaver.instance != null && GameSaver.instance.isFileLoaded)
+                    LoadObject();
 
-                    GameSaver.OnSaveFileLoaded += LoadObject;
-                }
+                GameSaver.OnSaveFileLoaded += LoadObject;
             }
-            else
-                myUID = UIDManager.instance.generateUID(gameObject);
         }
-
-        /// <summary>
-        /// Allows you to set the current value of myUID to map to this object in the UIDManager. 
-        /// This is not something you should use often, just for very special cases that you want 
-        /// to have a particular, easily identifyable UID, or to fix a broken setup
-        /// 
-        /// Can cause weird behaviour if you use it to overwrite an existing UID
-        /// </summary>
-        [NaughtyAttributes.Button("Register UID manually")]
-        void ManualUIDRegister()
-        {
-            UIDManager.instance.refreshReference(gameObject, myUID);
-        }
-
-
+        
         void OnEnable()
         {
             if (saveAutomatically)
                 GameSaver.OnSavingGame += SaveObject;
         }
 
-        void OnDestroy()
+        protected override void OnDestroy()
         {
+            base.OnDestroy();
+
             if (saveAutomatically)
                 GameSaver.OnSavingGame -= SaveObject;
-
-            if (!Application.isPlaying && gameObject.scene.isLoaded)
-                UIDManager.instance.removeUID(myUID);
         }
 
         void saveCallback(object sender, System.EventArgs args)
@@ -157,8 +126,8 @@ namespace Persyst
 
             currentSaveableTrace.Add(isaveable);
             Type typeToUse = asTypeOfInstance ? isaveable.GetType() : declaredType;
-            
-            FieldInfo[] fields= typeToUse.GetFields(bindingFlags);
+
+            FieldInfo[] fields = typeToUse.GetFields(bindingFlags);
             PropertyInfo[] properties = typeToUse.GetProperties(bindingFlags);
 
             StringWriter stringWriter = new StringWriter(new StringBuilder(256), CultureInfo.InvariantCulture);
@@ -168,7 +137,7 @@ namespace Persyst
                 writer.WriteStartObject();
                 writer.WritePropertyName("class");
                 writer.WriteRawValue($"\"{typeToUse.FullName}, {typeToUse.Assembly.GetName().Name}\"");
-            
+
                 void processMember(MemberInfo memberInfo)
                 {
                     if (!(memberInfo.IsDefined(typeof(SaveThis)) || memberInfo.IsDefined(typeof(SaveAsInstanceType))))
