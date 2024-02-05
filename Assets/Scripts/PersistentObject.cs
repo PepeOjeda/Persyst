@@ -160,7 +160,7 @@ namespace Persyst
                 {
                     processMember(fields[i]);
                 }
-                for (int i = 0; i < fields.Length; i++)
+                for (int i = 0; i < properties.Length; i++)
                 {
                     processMember(properties[i]);
                 }
@@ -275,9 +275,14 @@ namespace Persyst
             Type type = value.GetType();
             if (type.IsAssignableTo(typeof(Component)) || type.IsAssignableTo(typeof(GameObject)))
             {
-                MethodInfo method = type.GetMethod("GetComponent", 1, new Type[] { }).MakeGenericMethod(typeof(PersistentObject));
-                PersistentObject persistentObject = (PersistentObject)method.Invoke(value, new object[] { });
-                ulong uid = persistentObject.myUID;
+                MethodInfo method = type.GetMethod("GetComponent", 1, new Type[] { }).MakeGenericMethod(typeof(IdentifiableObject));
+                IdentifiableObject identifiableObject = (IdentifiableObject)method.Invoke(value, new object[] { });
+                if(!identifiableObject)
+                {
+                    Debug.LogError($"Trying to serialize reference to object {value.name}, which does not have an IdentifiableObject or PersistentObject component! Value will be null");
+                    return new JRaw("null");
+                }
+                ulong uid = identifiableObject.myUID;
                 return new JRaw(uid.ToString());
             }
             else if (type.IsAssignableTo(typeof(SerializableScriptableObject)))
