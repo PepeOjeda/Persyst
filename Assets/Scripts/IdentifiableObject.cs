@@ -18,10 +18,23 @@ namespace Persyst
 
         void Awake()
         {
+            CheckUIDAndInitialize();
+        }
+
+        void Reset()
+        {
+            CheckUIDAndInitialize();
+        }
+
+        void CheckUIDAndInitialize()
+        {
 #if UNITY_EDITOR
             //don't do anything when opening a prefab
             if(UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null) 
+            {
+                myUID = 0;
                 return;
+            }
 #endif
             if (myUID != 0)
                 Initialize();

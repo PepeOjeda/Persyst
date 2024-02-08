@@ -27,7 +27,7 @@ namespace Persyst
             ContractResolver = new ForceJSONSerializePrivatesResolver(),
             TypeNameHandling = TypeNameHandling.All
         };
-        public static JsonSerializer jsonSerializer = JsonSerializer.CreateDefault(regularSerializerSettings);
+        public static JsonSerializer jsonSerializer;
 
 
         [System.NonSerialized] public bool isFileLoaded;
@@ -40,6 +40,10 @@ namespace Persyst
             instance = this;
             isFileLoaded = false;
             jsonDictionary = new Dictionary<ulong, JRaw>();
+
+            // initialize here rather than giving a construct-time value because we need the UnityConverterInitializer 
+            // from the json-for-unity.converters package to run before we create the serializer
+            jsonSerializer = JsonSerializer.CreateDefault(regularSerializerSettings); 
         }
 
         internal void SaveObject(ulong UID, JRaw value)

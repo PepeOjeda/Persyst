@@ -78,16 +78,17 @@ namespace Persyst
 
 
 
-
+        bool initialized = false;
         public override void Initialize()
         {
             base.Initialize();
-            if (loadAutomatically)
+            if (loadAutomatically && !initialized)
             {
                 if (GameSaver.instance != null && GameSaver.instance.isFileLoaded)
                     LoadObject();
 
                 GameSaver.OnSaveFileLoaded += LoadObject;
+                initialized = true;
             }
         }
         
@@ -101,8 +102,8 @@ namespace Persyst
         {
             base.OnDestroy();
 
-            if (saveAutomatically)
-                GameSaver.OnSavingGame -= SaveObject;
+            GameSaver.OnSavingGame -= SaveObject;
+            GameSaver.OnSaveFileLoaded -= LoadObject;
         }
 
         void saveCallback(object sender, System.EventArgs args)
