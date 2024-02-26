@@ -90,12 +90,13 @@ namespace Persyst
 
 #if UNITY_EDITOR
             EditorUtility.SetDirty(_instance);
-            EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            if(!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(gameObject.scene);
 
             EditorUtility.SetDirty(unityObject);
             if (unityObject.GetType().IsAssignableTo(typeof(GameObject)))
                 EditorUtility.SetDirty((unityObject as GameObject).GetComponent<IdentifiableObject>());
-            if (unityObject is GameObject)
+            if (!Application.isPlaying && unityObject is GameObject)
                 EditorSceneManager.MarkSceneDirty((unityObject as GameObject).scene);
 #endif
             return value;
