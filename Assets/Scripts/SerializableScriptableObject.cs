@@ -12,7 +12,7 @@ ScriptableObjects are considered inmutable during runtime. This is not a technic
 [CreateAssetMenu(fileName = "Data", menuName = "ScriptableObjects/SerializableScriptableObject", order = 1)][DefaultExecutionOrder(-1)]
 public class SerializableScriptableObject : ScriptableObject
 {
-    [SerializeField] public ulong myUID;
+    [SerializeField] public long myUID;
     [SerializeField] bool assigned=false;
 
 

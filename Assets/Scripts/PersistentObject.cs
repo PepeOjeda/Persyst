@@ -54,6 +54,11 @@ namespace Persyst
                 writer.WriteStartObject();
                 ISaveable[] scriptList = GetComponents<ISaveable>();
 
+                if(scriptList.Length == 0)
+                {
+                    Debug.LogWarning($"Object {gameObject.name} has a PersistentObject component but no ISaveable MonoBehavious (so no data to save). If you only added the PersistentObject to be able to reference this object from another one, use an IdentifiableObject component instead");
+                    return;
+                }
                 for (int i = 0; i < scriptList.Length; i++)
                 {
                     ISaveable script = scriptList[i];
@@ -283,7 +288,7 @@ namespace Persyst
                     Debug.LogError($"Trying to serialize reference to object {value.name}, which does not have an IdentifiableObject or PersistentObject component! Value will be null");
                     return new JRaw("null");
                 }
-                ulong uid = identifiableObject.myUID;
+                long uid = identifiableObject.myUID;
                 return new JRaw(uid.ToString());
             }
             else if (type.IsAssignableTo(typeof(SerializableScriptableObject)))
@@ -360,7 +365,7 @@ namespace Persyst
             //serialized reference
             if (variableType.IsAssignableTo(typeof(UnityEngine.Object)))
             {
-                if (ulong.TryParse(jsonValue.ToString(), out ulong ref_UID))
+                if (long.TryParse(jsonValue.ToString(), out long ref_UID))
                 {
                     return DeserializeReference(ref script, ref_UID, memberInfo);
                 }
@@ -373,7 +378,7 @@ namespace Persyst
                 return DeserializeValue(variableType, value, jsonValue);
             }
         }
-        object DeserializeReference(ref object script, ulong ref_UID, MemberInfo memberInfo)
+        object DeserializeReference(ref object script, long ref_UID, MemberInfo memberInfo)
         {
             Type variableType = ReflectionUtilities.GetUnderlyingType(memberInfo);
             UnityEngine.Object referencedObject = UIDManager.instance.GetObject(ref_UID);

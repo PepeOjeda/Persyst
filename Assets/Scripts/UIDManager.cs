@@ -49,7 +49,7 @@ namespace Persyst
         private static event Action _OnManagerAvailable;
 
         System.Random random;
-        [SerializeField] SerializedDictionary<ulong, UnityEngine.Object> UIDs;
+        [SerializeField] SerializedDictionary<long, UnityEngine.Object> UIDs;
 
 #if UNITY_EDITOR
         [InitializeOnLoadMethod]
@@ -76,14 +76,14 @@ namespace Persyst
             Debug.Log("UIDManager initialized");
         }
 
-        internal ulong generateUID(UnityEngine.Object unityObject)
+        internal long generateUID(UnityEngine.Object unityObject)
         {
             byte[] buf = new byte[8];
-            ulong value;
+            long value;
             do
             {
                 random.NextBytes(buf);
-                value = (ulong)System.BitConverter.ToInt64(buf, 0);
+                value = (long)System.BitConverter.ToInt64(buf, 0);
             } while (UIDs.ContainsKey(value));
 
             UIDs.Add(value, unityObject);
@@ -102,20 +102,20 @@ namespace Persyst
             return value;
         }
 
-        public UnityEngine.Object GetObject(ulong UID)
+        public UnityEngine.Object GetObject(long UID)
         {
             if (UIDs.TryGetValue(UID, out UnityEngine.Object go))
                 return go;
             return null;
         }
 
-        internal void removeUID(ulong _uid)
+        internal void removeUID(long _uid)
         {
             UIDs.Remove(_uid);
         }
 
         //called by the presistentObject when it is loaded
-        internal void refreshReference(UnityEngine.Object unityObject, ulong _uid)
+        internal void refreshReference(UnityEngine.Object unityObject, long _uid)
         {
             UIDs[_uid] = unityObject;
 
@@ -154,8 +154,8 @@ namespace Persyst
         }
 
 
-        Dictionary<ulong, List<PendingReference>> pendingReferences = new Dictionary<ulong, List<PendingReference>>();
-        internal void registerPendingReference(object holder, ulong _uid, MemberInfo memberInfo)
+        Dictionary<long, List<PendingReference>> pendingReferences = new Dictionary<long, List<PendingReference>>();
+        internal void registerPendingReference(object holder, long _uid, MemberInfo memberInfo)
         {
             if (holder.GetType().IsValueType)
             {
@@ -172,8 +172,8 @@ namespace Persyst
         }
 
 
-        //for logging, as the unity inspector displays ulongs as if they were longs
-        long reinterpretAsLong(ulong value)
+        //for logging, as the unity inspector displays longs as if they were longs
+        long reinterpretAsLong(long value)
         {
             byte[] bytes = BitConverter.GetBytes(value);
             return (long)System.BitConverter.ToInt64(bytes, 0);
@@ -188,7 +188,7 @@ namespace Persyst
                 UIDs.Clear();
         }
         
-        [SerializeField] ulong UIDtoDelete;
+        [SerializeField] long UIDtoDelete;
         [NaughtyAttributes.Button("Delete Entry")]
         void DeleteEntry()
         {

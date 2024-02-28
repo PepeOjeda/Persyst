@@ -17,7 +17,7 @@ namespace Persyst
 
         [SerializeField] string defaultFilePath = "Assets/saveFile.json";
 
-        Dictionary<ulong, JRaw> jsonDictionary;
+        Dictionary<long, JRaw> jsonDictionary;
 
 
         
@@ -39,19 +39,19 @@ namespace Persyst
             }
             instance = this;
             isFileLoaded = false;
-            jsonDictionary = new Dictionary<ulong, JRaw>();
+            jsonDictionary = new Dictionary<long, JRaw>();
 
             // initialize here rather than giving a construct-time value because we need the UnityConverterInitializer 
             // from the json-for-unity.converters package to run before we create the serializer
             jsonSerializer = JsonSerializer.CreateDefault(regularSerializerSettings); 
         }
 
-        internal void SaveObject(ulong UID, JRaw value)
+        internal void SaveObject(long UID, JRaw value)
         {
             jsonDictionary[UID] = value;
         }
 
-        internal JRaw RetrieveObject(ulong UID)
+        internal JRaw RetrieveObject(long UID)
         {
             if (!isFileLoaded)
                 return null;
@@ -73,7 +73,7 @@ namespace Persyst
                 allText = File.ReadAllText(path);
             else
                 Debug.LogWarning($"No save file found on path \"{path}\". Creating an empty dictionary.");
-            jsonDictionary = JsonConvert.DeserializeObject<Dictionary<ulong, JRaw>>(allText);
+            jsonDictionary = JsonConvert.DeserializeObject<Dictionary<long, JRaw>>(allText);
 
             isFileLoaded = true;
             if (fireLoadEvent)

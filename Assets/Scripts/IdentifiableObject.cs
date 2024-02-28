@@ -1,10 +1,9 @@
 
 using UnityEngine;
-
+using System;
 
 namespace Persyst
 {
-
     [ExecuteInEditMode]
     [DefaultExecutionOrder(-1)]
     [DisallowMultipleComponent]
@@ -14,10 +13,13 @@ namespace Persyst
     /// </summary>
     public class IdentifiableObject : MonoBehaviour
     {
-        [SerializeField] public ulong myUID;
+        [SerializeField][NaughtyAttributes.ReadOnly] public long myUID;
+
+        
 
         void Awake()
         {
+            RegisterDrivenProperty();
             CheckUIDAndInitialize();
         }
 
@@ -51,8 +53,31 @@ namespace Persyst
         {
             if (!Application.isPlaying && gameObject.scene.isLoaded)
                 UIDManager.instance.removeUID(myUID);
+            //UnregisterDrivenProperty();
         }
 
+        // prevent the UID from being considered a prefab override
+        // This is a bit of a mess, because the driven property manager is not public, it is internal to the UnityEngine.CoreModule assembly, so it has to be done through reflection
+        // using something from a non-public API is not great, buuuuuut... 
+        void RegisterDrivenProperty()
+        {
+#if UNITY_EDITOR
+            var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
+            var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
+            var method = type.GetMethod("RegisterProperty");
+            method.Invoke(null, new object[]{this, this, "myUID"} );
+#endif
+        }
+
+        void UnregisterDrivenProperty()
+        {
+#if UNITY_EDITOR
+            var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
+            var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
+            var method = type.GetMethod("UnregisterProperty");
+            method.Invoke(null, new object[]{this, this, "myUID"} );
+#endif
+        }
         
 #if UNITY_EDITOR
         [NaughtyAttributes.Button("Remove from UIDManager")]
@@ -77,15 +102,27 @@ namespace Persyst
         [NaughtyAttributes.Button("Register UID manually")]
         protected void ManualUIDRegister()
         {
-            if(UnityEditor.EditorUtility.DisplayDialog("Is this what you are trying to do?",
-                "This will set the current value of myUID to map to this object in the UIDManager. It will not remove the old value from the UIDManager (if it exists), and will not handle problems caused by choosing a UID that's already in use by other objects. In general, it is preferrable to use the automatically assigned UIDs.", 
-                "Do it", "Cancel"))
-            {
-            UIDManager.instance.refreshReference(gameObject, myUID);
-            }
+            InputCustomUIDWindow window = ScriptableObject.CreateInstance<InputCustomUIDWindow>();
+            window.position = new Rect(Screen.width / 2, Screen.height / 2, 350, 250);
+            window.inputText = myUID.ToString();
+            window.identifiableObject = this;
+            window.ShowPopup();
         }
 
 #endif
+        // this code is meant to get rid of the IsDestroying assertion error due to driven properties... but id doesnt quite work. It's a bit of a mess, honestly
+        //void OnEnable()
+        //{
+        //    RegisterDrivenPorperty();
+        //}
+        //void OnDisable()
+        //{
+        //    long UID_copy = myUID;
+        //    UnityEditor.SerializedObject serializedObject = new UnityEditor.SerializedObject(this);
+        //    UnityEditor.SerializedProperty serializedPropertyMyInt = serializedObject.FindProperty("myUID");
+        //    UnityEditor.PrefabUtility.RevertPropertyOverride(serializedPropertyMyInt, UnityEditor.InteractionMode.AutomatedAction);
+        //    myUID = UID_copy;
+        //}
 
     }
 

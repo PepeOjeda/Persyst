@@ -5,10 +5,10 @@ using Persyst;
 
 public class Item_tracker : MonoBehaviour, ISaveable
 {
-	public static Dictionary<ulong, Item> items = new Dictionary<ulong, Item>();
+	public static Dictionary<long, Item> items = new Dictionary<long, Item>();
     public static Item_tracker instance;
 
-	[SaveThis] Dictionary<ulong, Item> _items{
+	[SaveThis] Dictionary<long, Item> _items{
 		get{return items;}
 		set{items = value;}
 	}
@@ -20,13 +20,13 @@ public class Item_tracker : MonoBehaviour, ISaveable
 		instance = this;
 	}
 
-	public ulong registerItem(Item item){
+	public long registerItem(Item item){
         System.Random random = new System.Random();
 		byte[] buf = new byte[8]; 
-		ulong value;
+		long value;
 		do{
 			random.NextBytes(buf);
-			value = (ulong)System.BitConverter.ToInt64(buf, 0);
+			value = (long)System.BitConverter.ToInt64(buf, 0);
 		}while(items.ContainsKey(value));
 		
 		items.Add(value, item);

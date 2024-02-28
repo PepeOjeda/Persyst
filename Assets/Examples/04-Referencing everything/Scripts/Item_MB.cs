@@ -60,7 +60,7 @@ public class Item_MB : MonoBehaviour, ISaveable
 }
 
 public class Item : ISaveable {
-	public ulong uid {get;} //the uid is set in the constructor and cannot be modified
+	public long uid {get;} //the uid is set in the constructor and cannot be modified
 	
 	[SaveThis] public int someTestValue; //this is just some meaningless value so you can more easily tell diferent instances apart in this example
 
@@ -70,7 +70,7 @@ public class Item : ISaveable {
 }
 
 public class ItemWrapper : ISaveable{
-	[SaveThis] ulong uid{
+	[SaveThis] long uid{
 		get{return item!=null? item.uid : 0;}
 		set{item = Item_tracker.items[value];} //the object instance is recovered automatically when you read the UID from the savefile!
 	}
