@@ -8,6 +8,7 @@ public class InputCustomUIDWindow : EditorWindow
     public IdentifiableObject identifiableObject;
     public string inputText;
     
+    Vector2 lastMousePos;
     void OnGUI()
     {
         inputText = EditorGUILayout.TextField( "New UID: ", inputText );
@@ -34,6 +35,21 @@ public class InputCustomUIDWindow : EditorWindow
         {
             Close();
         }
+
+        Vector2 currentMousePos = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
+        if (Event.current.type == EventType.MouseDown)
+            lastMousePos = currentMousePos;
+        if (Event.current.type == EventType.MouseDrag) 
+        {
+            Vector2 delta = currentMousePos - lastMousePos;
+            Rect currentpos = position;
+            currentpos.x += delta.x;
+            currentpos.y += delta.y;
+            position = currentpos;
+            Event.current.Use ();
+            lastMousePos = currentMousePos;
+        }
+
     }
 
 }

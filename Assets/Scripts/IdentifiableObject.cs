@@ -103,7 +103,7 @@ namespace Persyst
         protected void ManualUIDRegister()
         {
             InputCustomUIDWindow window = ScriptableObject.CreateInstance<InputCustomUIDWindow>();
-            window.position = new Rect(Screen.width / 2, Screen.height / 2, 350, 250);
+            window.position = new Rect(Screen.width, Screen.height/2 , 350, 250);
             window.inputText = myUID.ToString();
             window.identifiableObject = this;
             window.ShowPopup();

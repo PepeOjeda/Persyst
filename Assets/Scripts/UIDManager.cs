@@ -172,13 +172,6 @@ namespace Persyst
         }
 
 
-        //for logging, as the unity inspector displays longs as if they were longs
-        long reinterpretAsLong(long value)
-        {
-            byte[] bytes = BitConverter.GetBytes(value);
-            return (long)System.BitConverter.ToInt64(bytes, 0);
-        }
-
 #if UNITY_EDITOR
         [NaughtyAttributes.Button("Clear all entries")]
         void clearAllUIDs()
