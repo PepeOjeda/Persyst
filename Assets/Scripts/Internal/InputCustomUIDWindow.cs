@@ -23,7 +23,8 @@ public class InputCustomUIDWindow : EditorWindow
             {
                 UIDManager.instance.removeUID(identifiableObject.myUID);
                 identifiableObject.myUID = uid;
-                UIDManager.instance.refreshReference(identifiableObject.gameObject, uid);
+                if(uid != 0)
+                    UIDManager.instance.refreshReference(identifiableObject.gameObject, uid);
                 Close();
             }
             else

@@ -13,13 +13,18 @@ namespace Persyst
     /// </summary>
     public class IdentifiableObject : MonoBehaviour
     {
-        [SerializeField][NaughtyAttributes.ReadOnly] public long myUID;
+        [SerializeField]
+        [NaughtyAttributes.ReadOnly]
+         public long myUID;
 
         
 
         void Awake()
         {
+#if UNITY_EDITOR
+            UnityEditor.SceneManagement.EditorSceneManager.sceneClosing += serializeDrivenUID;
             RegisterDrivenProperty();
+#endif
             CheckUIDAndInitialize();
         }
 
@@ -34,6 +39,7 @@ namespace Persyst
             //don't do anything when opening a prefab
             if(UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null) 
             {
+                UnregisterDrivenProperty();
                 myUID = 0;
                 return;
             }
@@ -53,33 +59,36 @@ namespace Persyst
         {
             if (!Application.isPlaying && gameObject.scene.isLoaded)
                 UIDManager.instance.removeUID(myUID);
-            //UnregisterDrivenProperty();
+#if UNITY_EDITOR
+            UnityEditor.SceneManagement.EditorSceneManager.sceneClosing -= serializeDrivenUID;
+#endif
         }
 
+        
+#if UNITY_EDITOR
         // prevent the UID from being considered a prefab override
         // This is a bit of a mess, because the driven property manager is not public, it is internal to the UnityEngine.CoreModule assembly, so it has to be done through reflection
         // using something from a non-public API is not great, buuuuuut... 
         void RegisterDrivenProperty()
         {
-#if UNITY_EDITOR
+            RemoveOverrideState(false);
+
             var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
             var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
             var method = type.GetMethod("RegisterProperty");
             method.Invoke(null, new object[]{this, this, "myUID"} );
-#endif
+            
+            myUID = UID_copy;
         }
 
         void UnregisterDrivenProperty()
         {
-#if UNITY_EDITOR
             var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
             var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
             var method = type.GetMethod("UnregisterProperty");
             method.Invoke(null, new object[]{this, this, "myUID"} );
-#endif
         }
-        
-#if UNITY_EDITOR
+
         [NaughtyAttributes.Button("Remove from UIDManager")]
         protected void ManualUIDRemove()
         {
@@ -109,20 +118,58 @@ namespace Persyst
             window.ShowPopup();
         }
 
-#endif
         // this code is meant to get rid of the IsDestroying assertion error due to driven properties... but id doesnt quite work. It's a bit of a mess, honestly
-        //void OnEnable()
-        //{
-        //    RegisterDrivenPorperty();
-        //}
-        //void OnDisable()
-        //{
-        //    long UID_copy = myUID;
-        //    UnityEditor.SerializedObject serializedObject = new UnityEditor.SerializedObject(this);
-        //    UnityEditor.SerializedProperty serializedPropertyMyInt = serializedObject.FindProperty("myUID");
-        //    UnityEditor.PrefabUtility.RevertPropertyOverride(serializedPropertyMyInt, UnityEditor.InteractionMode.AutomatedAction);
-        //    myUID = UID_copy;
-        //}
+        long UID_copy = 0;
+        protected virtual void OnEnable()
+        {
+            if(Application.isPlaying)
+                return;
+            RemoveOverrideState(true);
+        }
+
+        void serializeDrivenUID(UnityEngine.SceneManagement.Scene scene, bool removingScene)
+        {
+            if(scene != gameObject.scene)
+                return;
+            storeUID();
+            UnregisterDrivenProperty();
+            myUID = UID_copy;
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(gameObject.scene);
+            Debug.Log("Saving scene modifications");
+            UnityEditor.SceneManagement.EditorSceneManager.sceneClosing -= serializeDrivenUID;
+        }
+
+        protected void OnDisable()
+        {
+            if(Application.isPlaying)
+                return;           
+            
+            storeUID();
+            UnregisterDrivenProperty();
+            myUID = UID_copy;
+        }
+
+        void RemoveOverrideState(bool registerProperty)
+        {
+            storeUID();
+            if(UnityEditor.PrefabUtility.IsPartOfAnyPrefab(gameObject))
+            {
+                UnityEditor.SerializedObject serializedObject = new UnityEditor.SerializedObject(this);
+                UnityEditor.SerializedProperty serializedPropertyMyInt = serializedObject.FindProperty("myUID");
+                UnityEditor.PrefabUtility.RevertPropertyOverride(serializedPropertyMyInt, UnityEditor.InteractionMode.AutomatedAction);
+            }
+            if(registerProperty)
+                RegisterDrivenProperty();
+            myUID = UID_copy;
+        }
+
+        void storeUID()
+        {
+            if(myUID !=0)
+                UID_copy = myUID;
+        }
+#endif
 
     }
 
