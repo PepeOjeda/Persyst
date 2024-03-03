@@ -112,6 +112,9 @@ namespace Persyst
         internal void removeUID(long _uid)
         {
             UIDs.Remove(_uid);
+            EditorUtility.SetDirty(_instance);
+            if(!Application.isPlaying)
+                EditorSceneManager.MarkSceneDirty(gameObject.scene);
         }
 
         //called by the presistentObject when it is loaded

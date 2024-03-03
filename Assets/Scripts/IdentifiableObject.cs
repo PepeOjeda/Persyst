@@ -19,11 +19,12 @@ namespace Persyst
 #if UNITY_EDITOR
         long UID_copy = 0;
 #endif
-        
+
 
         void Awake()
         {
 #if UNITY_EDITOR
+            UnityEditor.EditorApplication.playModeStateChanged += ModeStateChanged ;
             UnityEditor.SceneManagement.EditorSceneManager.sceneSaving += BeforeSaveSceneCallback;
             UnityEditor.SceneManagement.EditorSceneManager.sceneSaved += AfterSaveSceneCallback;
             RegisterDrivenProperty();
@@ -36,15 +37,16 @@ namespace Persyst
             if (!Application.isPlaying && gameObject.scene.isLoaded)
                 UIDManager.instance.removeUID(myUID);
 #if UNITY_EDITOR
-        UnityEditor.SceneManagement.EditorSceneManager.sceneSaving -= BeforeSaveSceneCallback;
-        UnityEditor.SceneManagement.EditorSceneManager.sceneSaved -= AfterSaveSceneCallback;
+            UnityEditor.EditorApplication.playModeStateChanged -= ModeStateChanged ;
+            UnityEditor.SceneManagement.EditorSceneManager.sceneSaving -= BeforeSaveSceneCallback;
+            UnityEditor.SceneManagement.EditorSceneManager.sceneSaved -= AfterSaveSceneCallback;
 #endif
         }
 
         protected virtual void OnEnable()
         {
 #if UNITY_EDITOR
-            if(Application.isPlaying)
+            if(UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
                 return;
             RemoveOverrideState(true);
 #endif
@@ -108,10 +110,12 @@ namespace Persyst
 
         void UnregisterDrivenProperty()
         {
+            UID_copy = myUID;
             var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
             var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
             var method = type.GetMethod("UnregisterProperty");
             method.Invoke(null, new object[]{this, this, "myUID"} );
+            myUID = UID_copy;
         }
 
         [NaughtyAttributes.Button("Remove from UIDManager")]
@@ -141,19 +145,22 @@ namespace Persyst
             window.ShowPopup();
         }
 
+        void ModeStateChanged (UnityEditor.PlayModeStateChange state)
+        {
+            if (state == UnityEditor.PlayModeStateChange.ExitingEditMode)
+                UnregisterDrivenProperty();
+        }
+
         void AfterSaveSceneCallback(UnityEngine.SceneManagement.Scene scene)
         {
             RegisterDrivenProperty();
-            myUID = UID_copy;
         }
 
         void BeforeSaveSceneCallback(UnityEngine.SceneManagement.Scene scene, string path)
         {
             if (scene != gameObject.scene)
                 return;
-            UID_copy = myUID;
             UnregisterDrivenProperty();
-            myUID = UID_copy;
         }
 
         void RemoveOverrideState(bool registerProperty)

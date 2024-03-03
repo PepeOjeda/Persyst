@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEditor;
 using UnityEngine.UIElements;
 using Persyst;
+using UnityEditor.SceneManagement;
 public class InputCustomUIDWindow : EditorWindow
 {
     public IdentifiableObject identifiableObject;
@@ -25,6 +26,11 @@ public class InputCustomUIDWindow : EditorWindow
                 identifiableObject.myUID = uid;
                 if(uid != 0)
                     UIDManager.instance.refreshReference(identifiableObject.gameObject, uid);
+                
+                EditorUtility.SetDirty(identifiableObject);
+                if(!Application.isPlaying)
+                    EditorSceneManager.MarkSceneDirty(identifiableObject.gameObject.scene);
+                
                 Close();
             }
             else
