@@ -16,18 +16,51 @@ namespace Persyst
         [SerializeField]
         [NaughtyAttributes.ReadOnly]
          public long myUID;
-
+#if UNITY_EDITOR
+        long UID_copy = 0;
+#endif
         
 
         void Awake()
         {
 #if UNITY_EDITOR
-            UnityEditor.SceneManagement.EditorSceneManager.sceneClosing += serializeDrivenUID;
+            UnityEditor.SceneManagement.EditorSceneManager.sceneSaving += BeforeSaveSceneCallback;
+            UnityEditor.SceneManagement.EditorSceneManager.sceneSaved += AfterSaveSceneCallback;
             RegisterDrivenProperty();
 #endif
             CheckUIDAndInitialize();
         }
 
+        protected virtual void OnDestroy()
+        {
+            if (!Application.isPlaying && gameObject.scene.isLoaded)
+                UIDManager.instance.removeUID(myUID);
+#if UNITY_EDITOR
+        UnityEditor.SceneManagement.EditorSceneManager.sceneSaving -= BeforeSaveSceneCallback;
+        UnityEditor.SceneManagement.EditorSceneManager.sceneSaved -= AfterSaveSceneCallback;
+#endif
+        }
+
+        protected virtual void OnEnable()
+        {
+#if UNITY_EDITOR
+            if(Application.isPlaying)
+                return;
+            RemoveOverrideState(true);
+#endif
+        }
+
+        protected void OnDisable()
+        {
+#if UNITY_EDITOR
+            if(Application.isPlaying)
+                return;           
+            
+            storeUID();
+            UnregisterDrivenProperty();
+            myUID = UID_copy;
+#endif
+        }
         void Reset()
         {
             CheckUIDAndInitialize();
@@ -55,14 +88,6 @@ namespace Persyst
             UIDManager.instance.refreshReference(gameObject, myUID);
         }
 
-        protected virtual void OnDestroy()
-        {
-            if (!Application.isPlaying && gameObject.scene.isLoaded)
-                UIDManager.instance.removeUID(myUID);
-#if UNITY_EDITOR
-            UnityEditor.SceneManagement.EditorSceneManager.sceneClosing -= serializeDrivenUID;
-#endif
-        }
 
         
 #if UNITY_EDITOR
@@ -105,8 +130,6 @@ namespace Persyst
         /// Allows you to set the current value of myUID to map to this object in the UIDManager. 
         /// This is not something you should use often, just for very special cases that you want 
         /// to have a particular, easily identifiable UID, or to fix a broken setup
-        /// 
-        /// Can cause weird behaviour if you use it to overwrite an existing UID
         /// </summary>
         [NaughtyAttributes.Button("Register UID manually")]
         protected void ManualUIDRegister()
@@ -118,34 +141,17 @@ namespace Persyst
             window.ShowPopup();
         }
 
-        // this code is meant to get rid of the IsDestroying assertion error due to driven properties... but id doesnt quite work. It's a bit of a mess, honestly
-        long UID_copy = 0;
-        protected virtual void OnEnable()
+        void AfterSaveSceneCallback(UnityEngine.SceneManagement.Scene scene)
         {
-            if(Application.isPlaying)
-                return;
-            RemoveOverrideState(true);
-        }
-
-        void serializeDrivenUID(UnityEngine.SceneManagement.Scene scene, bool removingScene)
-        {
-            if(scene != gameObject.scene)
-                return;
-            storeUID();
-            UnregisterDrivenProperty();
+            RegisterDrivenProperty();
             myUID = UID_copy;
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
-            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(gameObject.scene);
-            Debug.Log("Saving scene modifications");
-            UnityEditor.SceneManagement.EditorSceneManager.sceneClosing -= serializeDrivenUID;
         }
 
-        protected void OnDisable()
+        void BeforeSaveSceneCallback(UnityEngine.SceneManagement.Scene scene, string path)
         {
-            if(Application.isPlaying)
-                return;           
-            
-            storeUID();
+            if (scene != gameObject.scene)
+                return;
+            UID_copy = myUID;
             UnregisterDrivenProperty();
             myUID = UID_copy;
         }
