@@ -27,7 +27,8 @@ namespace Persyst
             UnityEditor.EditorApplication.playModeStateChanged += ModeStateChanged ;
             UnityEditor.SceneManagement.EditorSceneManager.sceneSaving += BeforeSaveSceneCallback;
             UnityEditor.SceneManagement.EditorSceneManager.sceneSaved += AfterSaveSceneCallback;
-            RegisterDrivenProperty();
+            if(!Application.isPlaying)
+                RegisterDrivenProperty();
 #endif
             CheckUIDAndInitialize();
         }
