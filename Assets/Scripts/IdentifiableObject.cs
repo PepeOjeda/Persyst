@@ -205,11 +205,15 @@ namespace Persyst
 #if UNITY_EDITOR
             // IMPORTANT: EditorApplication checks must be done first.
             // Otherise Unity may report errors like "Objects are trying to be loaded during a domain backup"
-            if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode || UnityEditor.EditorApplication.isUpdating) return;
+            if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode || UnityEditor.EditorApplication.isUpdating) 
+                return;
             // Validate the type of your prefab. Useful pre-check.
-            if (UnityEditor.PrefabUtility.GetPrefabAssetType(this) != UnityEditor.PrefabAssetType.Regular) return;
+            if (UnityEditor.PrefabUtility.GetPrefabAssetType(this) != UnityEditor.PrefabAssetType.Regular) 
+                return;
+
             // Override properties only if this is a prefab asset on disk and not any of its scene instances
-            if (UnityEditor.PrefabUtility.GetPrefabInstanceHandle(this)) return;
+            if (gameObject.scene.buildIndex >= 0) 
+                return;
             // Finally, re-set any fields to initial or specific values for the shared asset prefab on disk
             // This protects these fields when "Apply Override" gets called from any of prefab's scene instances
             myUID = 0;
