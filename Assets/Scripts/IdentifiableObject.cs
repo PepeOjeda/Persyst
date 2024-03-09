@@ -11,7 +11,7 @@ namespace Persyst
     /// It gets a UID and refreshes it automatically, like a persistent object would, but does not save or load any data
     /// The point is to use this for cases where a central manager object handles all the serialization, but it still needs to reference other objects by UID
     /// </summary>
-    public class IdentifiableObject : MonoBehaviour
+    public class IdentifiableObject : MonoBehaviour, ISerializationCallbackReceiver
     {
         [SerializeField]
         [NaughtyAttributes.ReadOnly]
@@ -153,7 +153,7 @@ namespace Persyst
 
         void AfterSaveSceneCallback(UnityEngine.SceneManagement.Scene scene)
         {
-            RegisterDrivenProperty();
+            RemoveOverrideState(true);
         }
 
         void BeforeSaveSceneCallback(UnityEngine.SceneManagement.Scene scene, string path)
@@ -177,11 +177,43 @@ namespace Persyst
             myUID = UID_copy;
         }
 
+        [NaughtyAttributes.Button("Reset prefab")]
+        void ResetPrefab()
+        {
+            UnregisterDrivenProperty();
+            myUID = 0;
+            UnityEditor.SerializedObject serializedObject = new UnityEditor.SerializedObject(this);
+            UnityEditor.SerializedProperty serializedPropertyMyInt = serializedObject.FindProperty("myUID");
+            string assetPath = UnityEditor.AssetDatabase.GetAssetPath(UnityEditor.PrefabUtility.GetCorrespondingObjectFromSource(this));
+            UnityEditor.PrefabUtility.ApplyPropertyOverride(serializedPropertyMyInt, 
+                assetPath,
+                UnityEditor.InteractionMode.AutomatedAction);
+            //myUID = UID_copy;
+            //RemoveOverrideState(true);
+        }
+
         void storeUID()
         {
             if(myUID !=0)
                 UID_copy = myUID;
         }
+
+        public void OnBeforeSerialize()
+        {
+            // IMPORTANT: EditorApplication checks must be done first.
+            // Otherise Unity may report errors like "Objects are trying to be loaded during a domain backup"
+            if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode || UnityEditor.EditorApplication.isUpdating) return;
+            // Validate the type of your prefab. Useful pre-check.
+            if (UnityEditor.PrefabUtility.GetPrefabAssetType(this) != UnityEditor.PrefabAssetType.Regular) return;
+            // Override properties only if this is a prefab asset on disk and not any of its scene instances
+            if (UnityEditor.PrefabUtility.GetPrefabInstanceHandle(this)) return;
+            // Finally, re-set any fields to initial or specific values for the shared asset prefab on disk
+            // This protects these fields when "Apply Override" gets called from any of prefab's scene instances
+            myUID = 0;
+        }
+
+        public void OnAfterDeserialize()
+        {}
 #endif
 
     }
