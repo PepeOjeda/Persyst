@@ -83,7 +83,15 @@ namespace Persyst
             if (myUID != 0)
                 Initialize();
             else
+            {
                 myUID = UIDManager.instance.generateUID(gameObject);
+                
+#if UNITY_EDITOR
+                UnityEditor.EditorUtility.SetDirty(gameObject);
+                if(!Application.isPlaying)
+                    UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+#endif
+            }
         }
 
         public virtual void Initialize()
@@ -212,7 +220,7 @@ namespace Persyst
                 return;
 
             // Override properties only if this is a prefab asset on disk and not any of its scene instances
-            if (gameObject.scene.buildIndex >= 0) 
+            if (gameObject.scene.path != "") 
                 return;
             // Finally, re-set any fields to initial or specific values for the shared asset prefab on disk
             // This protects these fields when "Apply Override" gets called from any of prefab's scene instances
