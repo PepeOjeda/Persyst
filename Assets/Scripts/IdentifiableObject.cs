@@ -220,7 +220,7 @@ namespace Persyst
                 return;
 
             // Override properties only if this is a prefab asset on disk and not any of its scene instances
-            if (gameObject.scene.path != "") 
+            if (!string.IsNullOrWhiteSpace(gameObject.scene.path)) 
                 return;
             // Finally, re-set any fields to initial or specific values for the shared asset prefab on disk
             // This protects these fields when "Apply Override" gets called from any of prefab's scene instances
