@@ -112,15 +112,24 @@ namespace Persyst
         internal void removeUID(long _uid)
         {
             UIDs.Remove(_uid);
-            EditorUtility.SetDirty(_instance);
             if(!Application.isPlaying)
+            {
+                EditorUtility.SetDirty(_instance);
                 EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            }
         }
 
         //called by the presistentObject when it is loaded
         internal void refreshReference(UnityEngine.Object unityObject, long _uid)
         {
             UIDs[_uid] = unityObject;
+#if UNITY_EDITOR
+            if(!Application.isPlaying)
+            {
+                EditorUtility.SetDirty(_instance);
+                EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            }
+#endif
 
             //if some object was waiting for this one to be loaded, pass it a reference
             if (pendingReferences.TryGetValue(_uid, out List<PendingReference> references))

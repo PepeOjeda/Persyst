@@ -1,6 +1,11 @@
+#if UNITY_EDITOR
+//#define USE_DRIVEN_PROPERTIES
+#endif
 
 using UnityEngine;
 using System;
+
+
 
 namespace Persyst
 {
@@ -16,14 +21,14 @@ namespace Persyst
         [SerializeField]
         [NaughtyAttributes.ReadOnly]
          public long myUID;
-#if UNITY_EDITOR
+#if USE_DRIVEN_PROPERTIES
         long UID_copy = 0;
 #endif
 
 
         void Awake()
         {
-#if UNITY_EDITOR
+#if USE_DRIVEN_PROPERTIES
             UnityEditor.EditorApplication.playModeStateChanged += ModeStateChanged ;
             UnityEditor.SceneManagement.EditorSceneManager.sceneSaving += BeforeSaveSceneCallback;
             UnityEditor.SceneManagement.EditorSceneManager.sceneSaved += AfterSaveSceneCallback;
@@ -37,7 +42,7 @@ namespace Persyst
         {
             if (!Application.isPlaying && gameObject.scene.isLoaded)
                 UIDManager.instance.removeUID(myUID);
-#if UNITY_EDITOR
+#if USE_DRIVEN_PROPERTIES
             UnityEditor.EditorApplication.playModeStateChanged -= ModeStateChanged ;
             UnityEditor.SceneManagement.EditorSceneManager.sceneSaving -= BeforeSaveSceneCallback;
             UnityEditor.SceneManagement.EditorSceneManager.sceneSaved -= AfterSaveSceneCallback;
@@ -46,7 +51,7 @@ namespace Persyst
 
         protected virtual void OnEnable()
         {
-#if UNITY_EDITOR
+#if USE_DRIVEN_PROPERTIES
             if(UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
                 return;
             RemoveOverrideState(true);
@@ -55,10 +60,9 @@ namespace Persyst
 
         protected void OnDisable()
         {
-#if UNITY_EDITOR
+#if USE_DRIVEN_PROPERTIES
             if(Application.isPlaying)
                 return;           
-            
             storeUID();
             UnregisterDrivenProperty();
             myUID = UID_copy;
@@ -75,8 +79,10 @@ namespace Persyst
             //don't do anything when opening a prefab
             if(UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null) 
             {
-                UnregisterDrivenProperty();
-                myUID = 0;
+#if USE_DRIVEN_PROPERTIES
+            UnregisterDrivenProperty();
+            myUID = 0;
+#endif
                 return;
             }
 #endif
@@ -102,31 +108,7 @@ namespace Persyst
 
         
 #if UNITY_EDITOR
-        // prevent the UID from being considered a prefab override
-        // This is a bit of a mess, because the driven property manager is not public, it is internal to the UnityEngine.CoreModule assembly, so it has to be done through reflection
-        // using something from a non-public API is not great, buuuuuut... 
-        void RegisterDrivenProperty()
-        {
-            RemoveOverrideState(false);
-
-            var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
-            var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
-            var method = type.GetMethod("RegisterProperty");
-            method.Invoke(null, new object[]{this, this, "myUID"} );
-            
-            myUID = UID_copy;
-        }
-
-        void UnregisterDrivenProperty()
-        {
-            UID_copy = myUID;
-            var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
-            var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
-            var method = type.GetMethod("UnregisterProperty");
-            method.Invoke(null, new object[]{this, this, "myUID"} );
-            myUID = UID_copy;
-        }
-
+        
         [NaughtyAttributes.Button("Remove from UIDManager")]
         protected void ManualUIDRemove()
         {
@@ -152,6 +134,34 @@ namespace Persyst
             window.inputText = myUID.ToString();
             window.identifiableObject = this;
             window.ShowPopup();
+        }
+#endif
+
+#if USE_DRIVEN_PROPERTIES
+
+        // prevent the UID from being considered a prefab override
+        // This is a bit of a mess, because the driven property manager is not public, it is internal to the UnityEngine.CoreModule assembly, so it has to be done through reflection
+        // using something from a non-public API is not great, buuuuuut... 
+        void RegisterDrivenProperty()
+        {
+            RemoveOverrideState(false);
+
+            var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
+            var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
+            var method = type.GetMethod("RegisterProperty");
+            method.Invoke(null, new object[]{this, this, "myUID"} );
+            
+            myUID = UID_copy;
+        }
+
+        void UnregisterDrivenProperty()
+        {
+            UID_copy = myUID;
+            var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
+            var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
+            var method = type.GetMethod("UnregisterProperty");
+            method.Invoke(null, new object[]{this, this, "myUID"} );
+            myUID = UID_copy;
         }
 
         void ModeStateChanged (UnityEditor.PlayModeStateChange state)
@@ -184,21 +194,6 @@ namespace Persyst
             if(registerProperty)
                 RegisterDrivenProperty();
             myUID = UID_copy;
-        }
-
-        [NaughtyAttributes.Button("Reset prefab")]
-        void ResetPrefab()
-        {
-            UnregisterDrivenProperty();
-            myUID = 0;
-            UnityEditor.SerializedObject serializedObject = new UnityEditor.SerializedObject(this);
-            UnityEditor.SerializedProperty serializedPropertyMyInt = serializedObject.FindProperty("myUID");
-            string assetPath = UnityEditor.AssetDatabase.GetAssetPath(UnityEditor.PrefabUtility.GetCorrespondingObjectFromSource(this));
-            UnityEditor.PrefabUtility.ApplyPropertyOverride(serializedPropertyMyInt, 
-                assetPath,
-                UnityEditor.InteractionMode.AutomatedAction);
-            //myUID = UID_copy;
-            //RemoveOverrideState(true);
         }
 
         void storeUID()
