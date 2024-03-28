@@ -31,7 +31,7 @@ namespace Persyst
         public static JsonSerializer jsonSerializer;
 
 
-        [System.NonSerialized] public bool isFileLoaded;
+        public bool isFileLoaded{get; private set;}
         void OnEnable()
         {
             if (instance != null && instance != this)
@@ -63,6 +63,7 @@ namespace Persyst
                 return null;
         }
 
+#region Loading
         public static event System.Action OnSaveFileLoaded;
         [NaughtyAttributes.Button("Read")]
         public void readFile(string path = "", bool fireLoadEvent = true)
@@ -74,34 +75,50 @@ namespace Persyst
                 allText = File.ReadAllText(path);
             else
                 Debug.LogWarning($"No save file found on path \"{path}\". Creating an empty dictionary.");
-            jsonDictionary = JsonConvert.DeserializeObject<Dictionary<long, JRaw>>(allText);
+            ParseJsonString(allText);
 
-            isFileLoaded = true;
             if (fireLoadEvent)
                 OnSaveFileLoaded?.Invoke();
         }
+
+        public void ParseJsonString(string jsonString)
+        {
+            jsonDictionary = JsonConvert.DeserializeObject<Dictionary<long, JRaw>>(jsonString);
+            isFileLoaded = true;
+        }
+
         public void FireLoadEvent()
         {
             OnSaveFileLoaded?.Invoke();
         }
+#endregion
         
+
+#region Saving
         public enum Formatting {Raw, Pretty}
-        public enum WriteMode {Sync, Async}
         public static event System.Action OnSavingGame;
 
 
         /// <summary>
         /// (optionally) Gets all the data from PersistentObjects with LoadAutomatically enabled, and writes to file.
-        /// Even though the function is declared as async, it is still possible to run it synchronously by setting writeMode == WriteMode.Sync (which is the default)
         /// </summary>
         [NaughtyAttributes.Button("Write")] 
-        public async Task writeToFile(string path = "", bool fireSaveEvent = true, Formatting formatting = Formatting.Raw, WriteMode writeMode = WriteMode.Sync)
+        public void writeToFile(string path = "", bool fireSaveEvent = true, Formatting formatting = Formatting.Raw)
         {
             if(path == "")
                 path = defaultFilePath;
             if (fireSaveEvent)
                 OnSavingGame?.Invoke();
 
+            string jsonString = GetJsonString(formatting);
+            File.WriteAllText(path, jsonString);
+        }
+
+        /// <summary>
+        /// Turns the current contents of the dictionary to a formatted json string. Does not gather the data from PersistentObjects or write to file.
+        /// </summary>
+        public string GetJsonString(Formatting formatting = Formatting.Raw)
+        {
             StringWriter stringWriter = new StringWriter(new StringBuilder(1000), CultureInfo.InvariantCulture);
             using (JsonTextWriter writer = new JsonTextWriter(stringWriter))
             {
@@ -115,24 +132,26 @@ namespace Persyst
                 writer.WriteEndObject();
                 if(formatting == Formatting.Pretty)
                 {
-                    if(writeMode == WriteMode.Async)
-                        await File.WriteAllTextAsync(path, JToken.Parse(stringWriter.ToString()).ToString());
-                    else
-                        File.WriteAllText(path, JToken.Parse(stringWriter.ToString()).ToString());
+                    return JToken.Parse(stringWriter.ToString()).ToString();
                 }
                 else 
                 {
-                    if(writeMode == WriteMode.Async)
-                        await File.WriteAllTextAsync(path, stringWriter.ToString());
-                    else
-                        File.WriteAllText(path, stringWriter.ToString());
+                    return stringWriter.ToString();
                 }
             }
         }
+
         public void FireSaveEvent()
         {
             OnSavingGame?.Invoke();
         }
+#endregion
 
+        [NaughtyAttributes.Button("Empty dictionary")]
+        void EmptyDictionary()
+        {
+            jsonDictionary = new();
+            Debug.LogWarning("Deleted all data in the dictionary");
+        }
     }
 }
