@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using System.IO;
 using System.Text;
 using System.Globalization;
+using System.Threading.Tasks;
 
 namespace Persyst
 {
@@ -79,13 +80,22 @@ namespace Persyst
             if (fireLoadEvent)
                 OnSaveFileLoaded?.Invoke();
         }
-        
+        public void FireLoadEvent()
+        {
+            OnSaveFileLoaded?.Invoke();
+        }
         
         public enum Formatting {Raw, Pretty}
+        public enum WriteMode {Sync, Async}
         public static event System.Action OnSavingGame;
 
-        [NaughtyAttributes.Button("Write")]
-        public void writeToFile(string path = "", bool fireSaveEvent = true, Formatting formatting = Formatting.Raw)
+
+        /// <summary>
+        /// (optionally) Gets all the data from PersistentObjects with LoadAutomatically enabled, and writes to file.
+        /// Even though the function is declared as async, it is still possible to run it synchronously by setting writeMode == WriteMode.Sync (which is the default)
+        /// </summary>
+        [NaughtyAttributes.Button("Write")] 
+        public async Task writeToFile(string path = "", bool fireSaveEvent = true, Formatting formatting = Formatting.Raw, WriteMode writeMode = WriteMode.Sync)
         {
             if(path == "")
                 path = defaultFilePath;
@@ -104,10 +114,24 @@ namespace Persyst
                 }
                 writer.WriteEndObject();
                 if(formatting == Formatting.Pretty)
-                    File.WriteAllText(path, JToken.Parse(stringWriter.ToString()).ToString());
+                {
+                    if(writeMode == WriteMode.Async)
+                        await File.WriteAllTextAsync(path, JToken.Parse(stringWriter.ToString()).ToString());
+                    else
+                        File.WriteAllText(path, JToken.Parse(stringWriter.ToString()).ToString());
+                }
                 else 
-                    File.WriteAllText(path, stringWriter.ToString());
+                {
+                    if(writeMode == WriteMode.Async)
+                        await File.WriteAllTextAsync(path, stringWriter.ToString());
+                    else
+                        File.WriteAllText(path, stringWriter.ToString());
+                }
             }
+        }
+        public void FireSaveEvent()
+        {
+            OnSavingGame?.Invoke();
         }
 
     }
