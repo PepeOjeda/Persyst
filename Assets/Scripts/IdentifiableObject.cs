@@ -80,17 +80,18 @@ namespace Persyst
             if(UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null) 
             {
 #if USE_DRIVEN_PROPERTIES
-            UnregisterDrivenProperty();
-            myUID = 0;
+                UnregisterDrivenProperty();
+                myUID = 0;
 #endif
                 return;
             }
 #endif
-            if (myUID != 0)
-                Initialize();
-            else
+            UnityEngine.Object objectWithThisUID = UIDManager.instance.GetObject(myUID);
+            bool uidIsTaken = objectWithThisUID != null && objectWithThisUID != this;
+            if (myUID == 0 || uidIsTaken)
             {
                 myUID = UIDManager.instance.generateUID(gameObject);
+                Debug.Log($"Generated UID {myUID} for object {gameObject.name}");
                 
 #if UNITY_EDITOR
                 UnityEditor.EditorUtility.SetDirty(gameObject);
@@ -98,6 +99,8 @@ namespace Persyst
                     UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
 #endif
             }
+            else
+                Initialize();
         }
 
         public virtual void Initialize()
