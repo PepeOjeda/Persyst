@@ -62,6 +62,10 @@ namespace Persyst
                 for (int i = 0; i < scriptList.Length; i++)
                 {
                     ISaveable script = scriptList[i];
+                    // An ISaveable class can request to be omitted from savefiles generated in edit mode (usually, if the values to be serialized only exist after runtime initialization)
+                    if(!script.SaveInEditMode && !Application.isPlaying)
+                        continue;
+
                     currentSaveableTrace = new List<ISaveable>();
                     string typeName = $"{script.GetType().FullName}, {script.GetType().Assembly.GetName().Name}";
                     writer.WritePropertyName($"{typeName}");

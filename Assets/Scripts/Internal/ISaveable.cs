@@ -5,6 +5,6 @@ using UnityEngine;
 namespace Persyst{
     public interface ISaveable
     {
-        
+        public virtual bool SaveInEditMode => true;
     }
 }
