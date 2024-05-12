@@ -89,15 +89,18 @@ namespace Persyst
             UIDs.Add(value, unityObject);
 
 #if UNITY_EDITOR
-            EditorUtility.SetDirty(_instance);
-            if(!Application.isPlaying)
-                EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            if(!BuildPipeline.isBuildingPlayer)
+            {
+                EditorUtility.SetDirty(_instance);
+                if(!Application.isPlaying)
+                    EditorSceneManager.MarkSceneDirty(gameObject.scene);
 
-            EditorUtility.SetDirty(unityObject);
-            if (unityObject.GetType().IsAssignableTo(typeof(GameObject)))
-                EditorUtility.SetDirty((unityObject as GameObject).GetComponent<IdentifiableObject>());
-            if (!Application.isPlaying && unityObject is GameObject)
-                EditorSceneManager.MarkSceneDirty((unityObject as GameObject).scene);
+                EditorUtility.SetDirty(unityObject);
+                if (unityObject.GetType().IsAssignableTo(typeof(GameObject)))
+                    EditorUtility.SetDirty((unityObject as GameObject).GetComponent<IdentifiableObject>());
+                if (!Application.isPlaying && unityObject is GameObject)
+                    EditorSceneManager.MarkSceneDirty((unityObject as GameObject).scene);
+            }
 #endif
             return value;
         }
@@ -112,11 +115,13 @@ namespace Persyst
         internal void removeUID(long _uid)
         {
             UIDs.Remove(_uid);
+#if UNITY_EDITOR
             if(!Application.isPlaying)
             {
                 EditorUtility.SetDirty(_instance);
                 EditorSceneManager.MarkSceneDirty(gameObject.scene);
             }
+#endif
         }
 
         //called by the presistentObject when it is loaded
@@ -124,7 +129,7 @@ namespace Persyst
         {
             UIDs[_uid] = unityObject;
 #if UNITY_EDITOR
-            if(!Application.isPlaying)
+            if(!Application.isPlaying && !BuildPipeline.isBuildingPlayer)
             {
                 EditorUtility.SetDirty(_instance);
                 EditorSceneManager.MarkSceneDirty(gameObject.scene);
