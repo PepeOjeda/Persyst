@@ -3,24 +3,29 @@ using System.Collections.Generic;
 using UnityEngine;
 using Persyst;
 
-public class ReferenceLoop_MB : MonoBehaviour, ISaveable
+namespace PersystExamples
 {
-	[SaveThis] A myA;
-	[SaveThis] B myB;
-    void Start()
+    public class ReferenceLoop_MB : MonoBehaviour, ISaveable
     {
-        myA= new A();
-		myB = new B();
-		myA.b = myB;
-		myB.a = myA;
+        [SaveThis] A myA;
+        [SaveThis] B myB;
+        void Start()
+        {
+            myA = new A();
+            myB = new B();
+            myA.b = myB;
+            myB.a = myA;
+        }
+
     }
 
-}
+    public class A : ISaveable
+    {
+        [SaveThis] public B b;
+    }
 
-public class A : ISaveable{
-	[SaveThis] public B b;
-}
-
-public class B : ISaveable{
-	[SaveThis] public A a;
+    public class B : ISaveable
+    {
+        [SaveThis] public A a;
+    }
 }

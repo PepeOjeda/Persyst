@@ -9,33 +9,44 @@ The save system does not actually save any information about the scriptableObjec
 ScriptableObjects are considered inmutable during runtime. This is not a technical limitation, it's a design decision, to do with what ScriptableObjects represent.
 */
 
-[CreateAssetMenu(fileName = "Data", menuName = "ScriptableObjects/SerializableScriptableObject", order = 1)][DefaultExecutionOrder(-1)]
-public class SerializableScriptableObject : ScriptableObject
+namespace Persyst
 {
-    [SerializeField] public long myUID;
-    [SerializeField] bool assigned=false;
+
+    [CreateAssetMenu(fileName = "Data", menuName = "ScriptableObjects/SerializableScriptableObject", order = 1)]
+    [DefaultExecutionOrder(-1)]
+    public class SerializableScriptableObject : ScriptableObject
+    {
+        [SerializeField] public long myUID;
+        [SerializeField] bool assigned = false;
 
 
-    void OnEnable(){
-        if(UIDManager.instance != null)
-            Initialize();
-        
-        UIDManager.OnManagerAvailable += Initialize;
-    }
-    void OnDestroy(){
-        RemoveFromUIDManager();
-    }
+        void OnEnable()
+        {
+            if (UIDManager.instance != null)
+                Initialize();
 
-    void Initialize(){
-        if(assigned){
-            UIDManager.instance.refreshReference(this, myUID);
-            return;
+            UIDManager.OnManagerAvailable += Initialize;
         }
-        myUID=UIDManager.instance.generateUID(this);
-        assigned=true;
+        void OnDestroy()
+        {
+            RemoveFromUIDManager();
+        }
+
+        void Initialize()
+        {
+            if (assigned)
+            {
+                UIDManager.instance.refreshReference(this, myUID);
+                return;
+            }
+            myUID = UIDManager.instance.generateUID(this);
+            assigned = true;
+        }
+
+        public void RemoveFromUIDManager()
+        {
+            UIDManager.instance.removeUID(myUID);
+        }
     }
 
-    public void RemoveFromUIDManager(){
-        UIDManager.instance.removeUID(myUID);
-    }
 }
