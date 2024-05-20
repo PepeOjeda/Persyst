@@ -13,9 +13,9 @@ ScriptableObjects are considered inmutable during runtime. This is not a technic
 namespace Persyst
 {
 
-    [CreateAssetMenu(fileName = "Data", menuName = "ScriptableObjects/SerializableScriptableObject", order = 1)]
+    [CreateAssetMenu(fileName = "Data", menuName = "ScriptableObjects/IdentifiableScriptableObject", order = 1)]
     [DefaultExecutionOrder(-1)]
-    public class SerializableScriptableObject : ScriptableObject, IReferentiable
+    public class IdentifiableScriptableObject : ScriptableObject, IReferentiable
     {
         [SerializeField] 
         [NaughtyAttributes.ReadOnly] public long myUID;
@@ -68,6 +68,11 @@ namespace Persyst
         public void SetUID(long value)
         {
             myUID = value;
+        }
+
+        public virtual string InspectorCategory()
+        {
+            return "Scriptable Objects";
         }
     }
 

@@ -151,7 +151,7 @@ namespace Persyst
                         MethodInfo method = typeof(GameObject).GetMethod("GetComponent", 1, new Type[] { }).MakeGenericMethod(variableType);
                         referencedObject = method.Invoke(unityObject, new object[] { });
                     }
-                    else if (variableType.IsAssignableTo(typeof(GameObject)) || variableType.IsAssignableTo(typeof(SerializableScriptableObject)))
+                    else if (variableType.IsAssignableTo(typeof(GameObject)) || variableType.IsAssignableTo(typeof(IdentifiableScriptableObject)))
                     {
                         referencedObject = unityObject;
                     }

@@ -1,14 +1,15 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace Persyst{
+namespace Persyst.Internal
+{
     public class SerializedScriptableObjectDeletion : UnityEditor.AssetModificationProcessor
     {
         static AssetDeleteResult OnWillDeleteAsset(string path, RemoveAssetOptions opt)
         {
-            if (AssetDatabase.GetMainAssetTypeAtPath(path) == typeof(SerializableScriptableObject))
+            if (AssetDatabase.GetMainAssetTypeAtPath(path) == typeof(IdentifiableScriptableObject))
             {
-                var sso = (SerializableScriptableObject) AssetDatabase.LoadAssetAtPath(path, typeof(SerializableScriptableObject));
+                var sso = (IdentifiableScriptableObject)AssetDatabase.LoadAssetAtPath(path, typeof(IdentifiableScriptableObject));
                 sso.RemoveFromUIDManager();
             }
             return AssetDeleteResult.DidNotDelete;

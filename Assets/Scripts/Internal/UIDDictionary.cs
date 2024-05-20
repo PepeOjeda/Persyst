@@ -32,9 +32,13 @@ namespace Persyst.Internal
 
             foreach (var pair in this)
             {
+                //Categories for inspector display only
+                //if the class 
                 string category = "";
-                if (pair.Value is GameObject && pair.Value != null)
-                    category = (pair.Value as GameObject).scene.name;
+                if (pair.Value is GameObject go && go != null)
+                    category = go.scene.name;
+                else if (pair.Value is IdentifiableScriptableObject so)
+                    category = so.InspectorCategory();
 
                 Entry entry = new() { key = pair.Key, value = pair.Value, Category = category };
 
