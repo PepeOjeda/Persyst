@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Persyst;
+using Persyst.Internal;
 
 /*
 IMPORTANT:
@@ -14,9 +15,10 @@ namespace Persyst
 
     [CreateAssetMenu(fileName = "Data", menuName = "ScriptableObjects/SerializableScriptableObject", order = 1)]
     [DefaultExecutionOrder(-1)]
-    public class SerializableScriptableObject : ScriptableObject
+    public class SerializableScriptableObject : ScriptableObject, IReferentiable
     {
-        [SerializeField] public long myUID;
+        [SerializeField] 
+        [NaughtyAttributes.ReadOnly] public long myUID;
         [SerializeField] bool assigned = false;
 
 
@@ -46,6 +48,26 @@ namespace Persyst
         public void RemoveFromUIDManager()
         {
             UIDManager.instance.removeUID(myUID);
+        }
+
+        [NaughtyAttributes.Button("Register UID manually")]
+        protected void ManualUIDRegister()
+        {
+            InputCustomUIDWindow window = ScriptableObject.CreateInstance<InputCustomUIDWindow>();
+            window.position = new Rect(Screen.width, Screen.height/2 , 350, 250);
+            window.inputText = myUID.ToString();
+            window.identifiableObject = this;
+            window.ShowPopup();
+        }
+
+        public long GetUID()
+        {
+            return myUID;
+        }
+
+        public void SetUID(long value)
+        {
+            myUID = value;
         }
     }
 

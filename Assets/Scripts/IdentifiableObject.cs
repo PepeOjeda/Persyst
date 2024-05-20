@@ -4,6 +4,7 @@
 
 using UnityEngine;
 using System;
+using Persyst.Internal;
 
 
 
@@ -16,11 +17,15 @@ namespace Persyst
     /// It gets a UID and refreshes it automatically, like a persistent object would, but does not save or load any data
     /// The point is to use this for cases where a central manager object handles all the serialization, but it still needs to reference other objects by UID
     /// </summary>
-    public class IdentifiableObject : MonoBehaviour, ISerializationCallbackReceiver
+    public class IdentifiableObject : MonoBehaviour, IReferentiable, ISerializationCallbackReceiver
     {
         [SerializeField]
         [NaughtyAttributes.ReadOnly]
-         public long myUID;
+        protected long myUID;
+        public long GetUID() => myUID;
+
+        public void SetUID(long value) => myUID = value;
+
 #if USE_DRIVEN_PROPERTIES
         long UID_copy = 0;
 #endif
@@ -229,6 +234,7 @@ namespace Persyst
         public void OnAfterDeserialize()
         {}
 
+        
     }
 
 }

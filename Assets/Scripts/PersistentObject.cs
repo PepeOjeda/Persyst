@@ -293,7 +293,7 @@ namespace Persyst
                     Debug.LogError($"Trying to serialize reference to object {value.name}, which does not have an IdentifiableObject or PersistentObject component! Value will be null");
                     return new JRaw("null");
                 }
-                long uid = identifiableObject.myUID;
+                long uid = identifiableObject.GetUID();
                 return new JRaw(uid.ToString());
             }
             else if (type.IsAssignableTo(typeof(SerializableScriptableObject)))

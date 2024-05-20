@@ -2,12 +2,13 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Reflection;
+using Persyst.Internal;
+
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.SceneManagement;
 #endif
-using UnityEngine.Rendering;
-using System.Reflection;
 
 namespace Persyst
 {
@@ -49,7 +50,7 @@ namespace Persyst
         private static event Action _OnManagerAvailable;
 
         System.Random random;
-        [SerializeField] SerializedDictionary<long, UnityEngine.Object> UIDs;
+        [SerializeField] UIDDictionary UIDs;
 
 #if UNITY_EDITOR
         [InitializeOnLoadMethod]

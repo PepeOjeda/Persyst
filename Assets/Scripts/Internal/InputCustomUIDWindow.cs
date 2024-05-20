@@ -4,60 +4,66 @@ using UnityEditor;
 using UnityEngine.UIElements;
 using Persyst;
 using UnityEditor.SceneManagement;
-public class InputCustomUIDWindow : EditorWindow
+using Persyst.Internal;
+
+namespace Persyst
 {
-    public IdentifiableObject identifiableObject;
-    public string inputText;
-    
-    Vector2 lastMousePos;
-    void OnGUI()
+
+    public class InputCustomUIDWindow : EditorWindow
     {
-        inputText = EditorGUILayout.TextField( "New UID: ", inputText );
-        
-        if(GUILayout.Button("Accept"))
+        public IReferentiable identifiableObject;
+        public string inputText;
+
+        Vector2 lastMousePos;
+        void OnGUI()
         {
-            if(!long.TryParse(inputText, out long uid))
+            inputText = EditorGUILayout.TextField("New UID: ", inputText);
+
+            if (GUILayout.Button("Accept"))
             {
-                Debug.LogError("Could not parse new uid!");
+                if (!long.TryParse(inputText, out long uid))
+                {
+                    Debug.LogError("Could not parse new uid!");
+                }
+                else if (identifiableObject != null)
+                {
+                    UIDManager.instance.removeUID(identifiableObject.GetUID());
+                    identifiableObject.SetUID(uid);
+                    if (uid != 0)
+                        UIDManager.instance.refreshReference(identifiableObject as Object, uid);
+
+                    EditorUtility.SetDirty(identifiableObject as Object);
+                    if (!Application.isPlaying && identifiableObject is MonoBehaviour)
+                        EditorSceneManager.MarkSceneDirty((identifiableObject as MonoBehaviour).gameObject.scene);
+
+                    Close();
+                }
+                else
+                    Debug.LogError("Identifiable object is null!");
+
             }
-            else if(identifiableObject)
+
+            if (GUILayout.Button("Cancel"))
             {
-                UIDManager.instance.removeUID(identifiableObject.myUID);
-                identifiableObject.myUID = uid;
-                if(uid != 0)
-                    UIDManager.instance.refreshReference(identifiableObject.gameObject, uid);
-                
-                EditorUtility.SetDirty(identifiableObject);
-                if(!Application.isPlaying)
-                    EditorSceneManager.MarkSceneDirty(identifiableObject.gameObject.scene);
-                
                 Close();
             }
-            else
-                Debug.LogError("Identifiable object is null!");
 
-        }
+            Vector2 currentMousePos = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
+            if (Event.current.type == EventType.MouseDown)
+                lastMousePos = currentMousePos;
+            if (Event.current.type == EventType.MouseDrag)
+            {
+                Vector2 delta = currentMousePos - lastMousePos;
+                Rect currentpos = position;
+                currentpos.x += delta.x;
+                currentpos.y += delta.y;
+                position = currentpos;
+                Event.current.Use();
+                lastMousePos = currentMousePos;
+            }
 
-        if(GUILayout.Button("Cancel"))
-        {
-            Close();
-        }
-
-        Vector2 currentMousePos = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
-        if (Event.current.type == EventType.MouseDown)
-            lastMousePos = currentMousePos;
-        if (Event.current.type == EventType.MouseDrag) 
-        {
-            Vector2 delta = currentMousePos - lastMousePos;
-            Rect currentpos = position;
-            currentpos.x += delta.x;
-            currentpos.y += delta.y;
-            position = currentpos;
-            Event.current.Use ();
-            lastMousePos = currentMousePos;
         }
 
     }
-
-}
 #endif
+}
