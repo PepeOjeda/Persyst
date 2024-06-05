@@ -17,7 +17,7 @@ namespace Persyst
     [DefaultExecutionOrder(-1)]
     public class IdentifiableScriptableObject : ScriptableObject, IReferentiable
     {
-        [SerializeField] 
+        [SerializeField]
         [NaughtyAttributes.ReadOnly] public long myUID;
         [SerializeField] bool assigned = false;
 
@@ -50,15 +50,6 @@ namespace Persyst
             UIDManager.instance.removeUID(myUID);
         }
 
-        [NaughtyAttributes.Button("Register UID manually")]
-        protected void ManualUIDRegister()
-        {
-            InputCustomUIDWindow window = ScriptableObject.CreateInstance<InputCustomUIDWindow>();
-            window.position = new Rect(Screen.width, Screen.height/2 , 350, 250);
-            window.inputText = myUID.ToString();
-            window.identifiableObject = this;
-            window.ShowPopup();
-        }
 
         public long GetUID()
         {
@@ -74,6 +65,18 @@ namespace Persyst
         {
             return "Scriptable Objects";
         }
+
+#if UNITY_EDITOR
+        [NaughtyAttributes.Button("Register UID manually")]
+        protected void ManualUIDRegister()
+        {
+            InputCustomUIDWindow window = ScriptableObject.CreateInstance<InputCustomUIDWindow>();
+            window.position = new Rect(Screen.width, Screen.height / 2, 350, 250);
+            window.inputText = myUID.ToString();
+            window.identifiableObject = this;
+            window.ShowPopup();
+        }
+#endif
     }
 
 }
