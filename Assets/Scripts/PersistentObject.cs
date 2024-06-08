@@ -298,7 +298,7 @@ namespace Persyst
             }
             else if (type.IsAssignableTo(typeof(IdentifiableScriptableObject)))
             {
-                return new JRaw((value as IdentifiableScriptableObject).myUID.ToString());
+                return new JRaw((value as IdentifiableScriptableObject).GetUID().ToString());
             }
 
             Debug.LogError($"Serializing a reference to a UnityEngine.Object that is not a Component, GameObject or SerializableScriptableObject is not supported. Type: {type}");

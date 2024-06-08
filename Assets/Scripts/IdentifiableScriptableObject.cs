@@ -17,9 +17,13 @@ namespace Persyst
     [DefaultExecutionOrder(-1)]
     public class IdentifiableScriptableObject : ScriptableObject, IReferentiable
     {
+        //ScriptableObjects are reset multiple times in a weird unpredictable way during creation and duplication, which messes things up quite a bit
+        //this static data lets us retrieve a UID that was already assigned to this object before the reset, to prevent ending up with multiple entries for a single object in the UIDManager
+        static Dictionary<int, long> UIDofInstance = new();
+
+
         [SerializeField]
-        [NaughtyAttributes.ReadOnly] public long myUID;
-        [SerializeField] bool assigned = false;
+        [NaughtyAttributes.ReadOnly] long myUID;
 
 
         void OnEnable()
@@ -29,23 +33,37 @@ namespace Persyst
 
             UIDManager.OnManagerAvailable += Initialize;
         }
+
         void OnDestroy()
         {
             RemoveFromUIDManager();
         }
 
-        void Initialize()
+        void Reset()
         {
-            if (assigned)
-            {
-                UIDManager.instance.refreshReference(this, myUID);
-                return;
-            }
-            myUID = UIDManager.instance.generateUID(this);
-            assigned = true;
+            RetrieveUIDAfterReset();
         }
 
-        public void RemoveFromUIDManager()
+        void RetrieveUIDAfterReset()
+        {    
+            if(UIDofInstance.TryGetValue(GetInstanceID(), out long auxUID))
+                myUID = auxUID;
+        } 
+
+        void Initialize()
+        {
+            RetrieveUIDAfterReset();
+            UnityEngine.Object objectWithThisUID = UIDManager.instance.GetObject(myUID);
+            bool uidIsTaken = objectWithThisUID != null && objectWithThisUID != this;
+            if (myUID == 0 || uidIsTaken)
+            {
+                myUID = UIDManager.instance.generateUID(this);
+                Debug.Log($"Generated UID {myUID} for object {name}");
+            }
+            UIDofInstance[GetInstanceID()] = myUID;
+        }
+
+        public void RemoveFromUIDManager() 
         {
             UIDManager.instance.removeUID(myUID);
         }
@@ -59,6 +77,7 @@ namespace Persyst
         public void SetUID(long value)
         {
             myUID = value;
+            UIDofInstance[GetInstanceID()] = myUID;
         }
 
         public virtual string InspectorCategory()
