@@ -340,6 +340,11 @@ namespace Persyst
             Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
             string typeName = JsonConvert.DeserializeObject<string>(jsonDict["class"].ToString());
             Type serializedType = Type.GetType(typeName);
+            if(serializedType == null)
+            {
+                Debug.LogError($"Cannot find type {typeName} when deserializing {script}");
+                return;
+            }
             jsonDict.Remove("class");
 
             //if the object was serialized with a type that's different from the type of its current value, create a new one of the serialized type
