@@ -54,7 +54,7 @@ namespace Persyst
                 writer.WriteStartObject();
                 ISaveable[] scriptList = GetComponents<ISaveable>();
 
-                if(scriptList.Length == 0)
+                if (scriptList.Length == 0)
                 {
                     Debug.LogWarning($"Object {gameObject.name} has a PersistentObject component but no ISaveable MonoBehavious (so no data to save). If you only added the PersistentObject to be able to reference this object from another one, use an IdentifiableObject component instead");
                     return;
@@ -63,7 +63,7 @@ namespace Persyst
                 {
                     ISaveable script = scriptList[i];
                     // An ISaveable class can request to be omitted from savefiles generated in edit mode (usually, if the values to be serialized only exist after runtime initialization)
-                    if(!script.SaveInEditMode && !Application.isPlaying)
+                    if (!script.SaveInEditMode && !Application.isPlaying)
                         continue;
 
                     currentSaveableTrace = new List<ISaveable>();
@@ -100,7 +100,7 @@ namespace Persyst
                 initialized = true;
             }
         }
-        
+
         protected override void OnEnable()
         {
             base.OnEnable();
@@ -184,7 +184,7 @@ namespace Persyst
         JRaw serializeMember(object value, Type type, bool asTypeOfInstance)
         {
             if (value == null)
-                return null;
+                return new JRaw("null");
 
             //serialize reference
             if (type.IsAssignableTo(typeof(UnityEngine.Object)))
@@ -280,7 +280,7 @@ namespace Persyst
         {
             if (value == null)
             {
-                return null;
+                return new JRaw("null");
             }
 
             Type type = value.GetType();
@@ -288,7 +288,7 @@ namespace Persyst
             {
                 MethodInfo method = type.GetMethod("GetComponent", 1, new Type[] { }).MakeGenericMethod(typeof(IdentifiableObject));
                 IdentifiableObject identifiableObject = (IdentifiableObject)method.Invoke(value, new object[] { });
-                if(!identifiableObject)
+                if (!identifiableObject)
                 {
                     Debug.LogError($"Trying to serialize reference to object {value.name}, which does not have an IdentifiableObject or PersistentObject component! Value will be null");
                     return new JRaw("null");
@@ -331,11 +331,11 @@ namespace Persyst
                 object script = method.Invoke(gameObject, new object[] { });
                 if (script == null)
                     script = typeof(GameObject).GetMethod("AddComponent", 1, new Type[] { }).MakeGenericMethod(type).Invoke(gameObject, new object[] { });
-                DeserializeISavable(ref script, entry.Value);
+                DeserializeISaveable(ref script, entry.Value);
             }
         }
 
-        void DeserializeISavable(ref object script, JRaw jsonString)
+        void DeserializeISaveable(ref object script, JRaw jsonString)
         {
             Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
             string typeName = JsonConvert.DeserializeObject<string>(jsonDict["class"].ToString());
@@ -408,7 +408,7 @@ namespace Persyst
 
             if (variableType.GetInterfaces().Contains(typeof(ISaveable)))
             {
-                DeserializeISavable(ref currentValue, jraw); //recursion!
+                DeserializeISaveable(ref currentValue, jraw); //recursion!
                 return currentValue;
             }
             else if (variableType.GetInterfaces().Contains(typeof(ICollection)))
@@ -457,7 +457,7 @@ namespace Persyst
             if (elementType.GetInterfaces().Contains(typeof(ISaveable)))
             {
                 value = Activator.CreateInstance(elementType);
-                DeserializeISavable(ref value, jrawElement);
+                DeserializeISaveable(ref value, jrawElement);
             }
             else
                 value = DeserializeValue(elementType, null, jrawElement);
