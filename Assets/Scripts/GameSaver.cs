@@ -132,7 +132,7 @@ namespace Persyst
                 writer.WriteEndObject();
                 if(formatting == Formatting.Pretty)
                 {
-                    return JToken.Parse(stringWriter.ToString()).ToString();
+                    return JsonUtils.Prettify(stringWriter.ToString());
                 }
                 else 
                 {
