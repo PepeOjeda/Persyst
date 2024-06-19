@@ -151,7 +151,15 @@ namespace Persyst
 
                 void processMember(MemberInfo memberInfo)
                 {
-                    if (!(memberInfo.IsDefined(typeof(SaveThis)) || memberInfo.IsDefined(typeof(SaveAsInstanceType))))
+                    bool hasSaveAttribute = memberInfo.IsDefined(typeof(SaveThis)) || memberInfo.IsDefined(typeof(SaveAsInstanceType));
+                    bool omittedBecauseEditor =
+#if PERSYST_OMITTING_ENABLED
+                        Application.isEditor && memberInfo.IsDefined(typeof(OmitInEditor))
+#else
+                        false
+#endif
+                        ;
+                    if (!hasSaveAttribute || omittedBecauseEditor)
                         return;
 
                     object value = ReflectionUtilities.getValue(memberInfo, isaveable);
@@ -340,7 +348,7 @@ namespace Persyst
             Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
             string typeName = JsonConvert.DeserializeObject<string>(jsonDict["class"].ToString());
             Type serializedType = Type.GetType(typeName);
-            if(serializedType == null)
+            if (serializedType == null)
             {
                 Debug.LogError($"Cannot find type {typeName} when deserializing {script}");
                 return;
