@@ -345,6 +345,9 @@ namespace Persyst
 
         void DeserializeISaveable(ref object script, JRaw jsonString)
         {
+            if (jsonString.ToString() == "null")
+                return;
+
             Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
             string typeName = JsonConvert.DeserializeObject<string>(jsonDict["class"].ToString());
             Type serializedType = Type.GetType(typeName);
@@ -467,7 +470,9 @@ namespace Persyst
         object DeserializeCollectionElement(Type elementType, JRaw jrawElement)
         {
             object value;
-            if (elementType.GetInterfaces().Contains(typeof(ISaveable)))
+            if (jrawElement.ToString() == "null")
+                return null;
+            else if (elementType.GetInterfaces().Contains(typeof(ISaveable)))
             {
                 value = Activator.CreateInstance(elementType);
                 DeserializeISaveable(ref value, jrawElement);
