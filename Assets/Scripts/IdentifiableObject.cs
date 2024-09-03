@@ -1,5 +1,4 @@
 #if UNITY_EDITOR
-//#define USE_DRIVEN_PROPERTIES
 #endif
 
 using UnityEngine;
@@ -26,20 +25,9 @@ namespace Persyst
 
         public void SetUID(long value) => myUID = value;
 
-#if USE_DRIVEN_PROPERTIES
-        long UID_copy = 0;
-#endif
-
 
         void Awake()
         {
-#if USE_DRIVEN_PROPERTIES
-            UnityEditor.EditorApplication.playModeStateChanged += ModeStateChanged ;
-            UnityEditor.SceneManagement.EditorSceneManager.sceneSaving += BeforeSaveSceneCallback;
-            UnityEditor.SceneManagement.EditorSceneManager.sceneSaved += AfterSaveSceneCallback;
-            if(!Application.isPlaying)
-                RegisterDrivenProperty();
-#endif
             CheckUIDAndInitialize();
         }
 
@@ -47,32 +35,12 @@ namespace Persyst
         {
             if (!Application.isPlaying && gameObject.scene.isLoaded)
                 UIDManager.instance.removeUID(myUID);
-#if USE_DRIVEN_PROPERTIES
-            UnityEditor.EditorApplication.playModeStateChanged -= ModeStateChanged ;
-            UnityEditor.SceneManagement.EditorSceneManager.sceneSaving -= BeforeSaveSceneCallback;
-            UnityEditor.SceneManagement.EditorSceneManager.sceneSaved -= AfterSaveSceneCallback;
-#endif
         }
 
         protected virtual void OnEnable()
         {
-#if USE_DRIVEN_PROPERTIES
-            if(UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
-                return;
-            RemoveOverrideState(true);
-#endif
         }
 
-        protected void OnDisable()
-        {
-#if USE_DRIVEN_PROPERTIES
-            if(Application.isPlaying)
-                return;           
-            storeUID();
-            UnregisterDrivenProperty();
-            myUID = UID_copy;
-#endif
-        }
         void Reset()
         {
             CheckUIDAndInitialize();
@@ -82,12 +50,8 @@ namespace Persyst
         {
 #if UNITY_EDITOR
             //don't do anything when opening a prefab
-            if(UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null) 
+            if (UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage() != null)
             {
-#if USE_DRIVEN_PROPERTIES
-                UnregisterDrivenProperty();
-                myUID = 0;
-#endif
                 return;
             }
 #endif
@@ -97,10 +61,10 @@ namespace Persyst
             {
                 myUID = UIDManager.instance.generateUID(gameObject);
                 Debug.Log($"Generated UID {myUID} for object {gameObject.name}");
-                
+
 #if UNITY_EDITOR
                 UnityEditor.EditorUtility.SetDirty(gameObject);
-                if(!Application.isPlaying)
+                if (!Application.isPlaying)
                     UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
 #endif
             }
@@ -114,14 +78,14 @@ namespace Persyst
         }
 
 
-        
+
 #if UNITY_EDITOR
-        
+
         [NaughtyAttributes.Button("Remove from UIDManager")]
         protected void ManualUIDRemove()
         {
-            if(UnityEditor.EditorUtility.DisplayDialog("You sure?",
-                "Removing this object from the UIDManager means other objects will not be able to find it through Persyst any more, unless you give it a new UID and make sure to update all corresponding references to it.", 
+            if (UnityEditor.EditorUtility.DisplayDialog("You sure?",
+                "Removing this object from the UIDManager means other objects will not be able to find it through Persyst any more, unless you give it a new UID and make sure to update all corresponding references to it.",
                 "Remove it", "Cancel"))
             {
 
@@ -138,76 +102,10 @@ namespace Persyst
         protected void ManualUIDRegister()
         {
             InputCustomUIDWindow window = ScriptableObject.CreateInstance<InputCustomUIDWindow>();
-            window.position = new Rect(Screen.width, Screen.height/2 , 350, 250);
+            window.position = new Rect(Screen.width, Screen.height / 2, 350, 250);
             window.inputText = myUID.ToString();
             window.identifiableObject = this;
             window.ShowPopup();
-        }
-#endif
-
-#if USE_DRIVEN_PROPERTIES
-
-        // prevent the UID from being considered a prefab override
-        // This is a bit of a mess, because the driven property manager is not public, it is internal to the UnityEngine.CoreModule assembly, so it has to be done through reflection
-        // using something from a non-public API is not great, buuuuuut... 
-        void RegisterDrivenProperty()
-        {
-            RemoveOverrideState(false);
-
-            var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
-            var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
-            var method = type.GetMethod("RegisterProperty");
-            method.Invoke(null, new object[]{this, this, "myUID"} );
-            
-            myUID = UID_copy;
-        }
-
-        void UnregisterDrivenProperty()
-        {
-            UID_copy = myUID;
-            var assembly = System.Reflection.Assembly.Load("UnityEngine.CoreModule");
-            var type = assembly.GetType("UnityEngine.DrivenPropertyManager");
-            var method = type.GetMethod("UnregisterProperty");
-            method.Invoke(null, new object[]{this, this, "myUID"} );
-            myUID = UID_copy;
-        }
-
-        void ModeStateChanged (UnityEditor.PlayModeStateChange state)
-        {
-            if (state == UnityEditor.PlayModeStateChange.ExitingEditMode)
-                UnregisterDrivenProperty();
-        }
-
-        void AfterSaveSceneCallback(UnityEngine.SceneManagement.Scene scene)
-        {
-            RemoveOverrideState(true);
-        }
-
-        void BeforeSaveSceneCallback(UnityEngine.SceneManagement.Scene scene, string path)
-        {
-            if (scene != gameObject.scene)
-                return;
-            UnregisterDrivenProperty();
-        }
-
-        void RemoveOverrideState(bool registerProperty)
-        {
-            storeUID();
-            if(UnityEditor.PrefabUtility.IsPartOfAnyPrefab(gameObject))
-            {
-                UnityEditor.SerializedObject serializedObject = new UnityEditor.SerializedObject(this);
-                UnityEditor.SerializedProperty serializedPropertyMyInt = serializedObject.FindProperty("myUID");
-                UnityEditor.PrefabUtility.RevertPropertyOverride(serializedPropertyMyInt, UnityEditor.InteractionMode.AutomatedAction);
-            }
-            if(registerProperty)
-                RegisterDrivenProperty();
-            myUID = UID_copy;
-        }
-
-        void storeUID()
-        {
-            if(myUID !=0)
-                UID_copy = myUID;
         }
 #endif
 
@@ -216,14 +114,14 @@ namespace Persyst
 #if UNITY_EDITOR
             // IMPORTANT: EditorApplication checks must be done first.
             // Otherise Unity may report errors like "Objects are trying to be loaded during a domain backup"
-            if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode || UnityEditor.EditorApplication.isUpdating) 
+            if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode || UnityEditor.EditorApplication.isUpdating)
                 return;
             // Validate the type of your prefab. Useful pre-check.
-            if (UnityEditor.PrefabUtility.GetPrefabAssetType(this) != UnityEditor.PrefabAssetType.Regular) 
+            if (UnityEditor.PrefabUtility.GetPrefabAssetType(this) != UnityEditor.PrefabAssetType.Regular)
                 return;
 
             // Override properties only if this is a prefab asset on disk and not any of its scene instances
-            if (!string.IsNullOrWhiteSpace(gameObject.scene.path)) 
+            if (!string.IsNullOrWhiteSpace(gameObject.scene.path))
                 return;
             // Finally, re-set any fields to initial or specific values for the shared asset prefab on disk
             // This protects these fields when "Apply Override" gets called from any of prefab's scene instances
@@ -232,9 +130,9 @@ namespace Persyst
         }
 
         public void OnAfterDeserialize()
-        {}
+        { }
 
-        
+
     }
 
 }
