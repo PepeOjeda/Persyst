@@ -34,7 +34,7 @@ namespace Persyst
         protected virtual void OnDestroy()
         {
             if (!Application.isPlaying && gameObject.scene.isLoaded)
-                UIDManager.instance.removeUID(myUID);
+                RemoveUID();
         }
 
         protected virtual void OnEnable()
@@ -60,7 +60,7 @@ namespace Persyst
             if (myUID == 0 || uidIsTaken)
             {
                 myUID = UIDManager.instance.generateUID(gameObject);
-                Debug.Log($"Generated UID {myUID} for object {gameObject.name}");
+                Debug.Log($"Generated UID {myUID} (object {gameObject.name} scene {gameObject.scene.name})");
 
 #if UNITY_EDITOR
                 UnityEditor.EditorUtility.SetDirty(gameObject);
@@ -77,6 +77,11 @@ namespace Persyst
             UIDManager.instance.refreshReference(gameObject, myUID);
         }
 
+        void RemoveUID()
+        {
+            Debug.Log($"Removing UID {myUID} from manager (object {gameObject.name} scene {gameObject.scene.name})");
+            UIDManager.instance.removeUID(myUID);
+        }
 
 
 #if UNITY_EDITOR
@@ -88,8 +93,7 @@ namespace Persyst
                 "Removing this object from the UIDManager means other objects will not be able to find it through Persyst any more, unless you give it a new UID and make sure to update all corresponding references to it.",
                 "Remove it", "Cancel"))
             {
-
-                UIDManager.instance.removeUID(myUID);
+                RemoveUID();
             }
         }
 
