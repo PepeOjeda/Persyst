@@ -44,10 +44,11 @@ namespace Persyst
             eventHandler -= loadCallback;
         }
 
+        //for detecting reference loops
         List<ISaveable> currentSaveableTrace;
         public void SaveObject()
         {
-            StringWriter stringWriter = new StringWriter(new StringBuilder(256), CultureInfo.InvariantCulture);
+            StringWriter stringWriter = new StringWriter(new StringBuilder(2000), CultureInfo.InvariantCulture);
             using (JsonTextWriter writer = new JsonTextWriter(stringWriter))
             {
                 writer.Formatting = GameSaver.jsonSerializer.Formatting;
@@ -69,7 +70,7 @@ namespace Persyst
                     currentSaveableTrace = new List<ISaveable>();
                     string typeName = $"{script.GetType().FullName}, {script.GetType().Assembly.GetName().Name}";
                     writer.WritePropertyName($"{typeName}");
-                    writer.WriteRawValue(serializeISaveable(script, script.GetType(), false).ToString());
+                    serializeISaveable(script, script.GetType(), false, writer);
                 }
                 writer.WriteEndObject();
 
@@ -126,105 +127,140 @@ namespace Persyst
         }
 
         //Saving
-        JRaw serializeISaveable(ISaveable isaveable, Type declaredType, bool asTypeOfInstance)
+        //------------------------------------
+        //------------------------------------
+
+        static Dictionary<Type, List<SerializationInfo>> memberCache = new();
+        struct SerializationInfo
+        {
+            public MemberInfo memberInfo;
+            public List<Type> attributes;
+        }
+
+        void serializeISaveable(ISaveable isaveable, Type declaredType, bool asTypeOfInstance, JsonTextWriter writer)
         {
             if (currentSaveableTrace.Any(x => !x.GetType().IsValueType && object.ReferenceEquals(x, isaveable)))
             {
                 //Reference Loop!
                 Debug.LogWarning($"Reference loop detected in object {isaveable}. Setting reference to null.");
-                return new JRaw("null");
+                writer.WriteRawValue("null");
+                return;
             }
 
             currentSaveableTrace.Add(isaveable);
-            Type typeToUse = asTypeOfInstance ? isaveable.GetType() : declaredType;
 
-            FieldInfo[] fields = typeToUse.GetFields(bindingFlags);
-            PropertyInfo[] properties = typeToUse.GetProperties(bindingFlags);
-
-            StringWriter stringWriter = new StringWriter(new StringBuilder(256), CultureInfo.InvariantCulture);
-            using (JsonTextWriter writer = new JsonTextWriter(stringWriter))
+            void cacheSerializationInfo(MemberInfo memberInfo, List<SerializationInfo> serializationInfos)
             {
-                writer.Formatting = GameSaver.jsonSerializer.Formatting;
-                writer.WriteStartObject();
-                writer.WritePropertyName("class");
-                writer.WriteRawValue($"\"{typeToUse.FullName}, {typeToUse.Assembly.GetName().Name}\"");
+                bool hasSaveThis = memberInfo.IsDefined(typeof(SaveThis));
+                bool hasSaveAsInstanceType = memberInfo.IsDefined(typeof(SaveAsInstanceType));
+                bool hasOmitInEditor = memberInfo.IsDefined(typeof(OmitInEditor));
+                if (!hasSaveThis && !hasSaveAsInstanceType && !hasOmitInEditor)
+                    return;
 
-                void processMember(MemberInfo memberInfo)
-                {
-                    bool hasSaveAttribute = memberInfo.IsDefined(typeof(SaveThis)) || memberInfo.IsDefined(typeof(SaveAsInstanceType));
-                    bool omittedBecauseEditor =
+                SerializationInfo info = new();
+                info.memberInfo = memberInfo;
+                info.attributes = new();
+                if (hasSaveThis)
+                    info.attributes.Add(typeof(SaveThis));
+                if (hasSaveAsInstanceType)
+                    info.attributes.Add(typeof(SaveAsInstanceType));
+                if (hasOmitInEditor)
+                    info.attributes.Add(typeof(OmitInEditor));
+                serializationInfos.Add(info);
+            }
+
+            Type typeToUse = asTypeOfInstance ? isaveable.GetType() : declaredType;
+            List<SerializationInfo> serializationInfos;
+            if (!memberCache.TryGetValue(typeToUse, out serializationInfos))
+            {
+                serializationInfos = new();
+                FieldInfo[] fields = typeToUse.GetFields(bindingFlags);
+                PropertyInfo[] properties = typeToUse.GetProperties(bindingFlags);
+                for (int i = 0; i < fields.Length; i++)
+                    cacheSerializationInfo(fields[i], serializationInfos);
+                for (int i = 0; i < properties.Length; i++)
+                    cacheSerializationInfo(properties[i], serializationInfos);
+                memberCache[typeToUse] = serializationInfos;
+            }
+
+            writer.Formatting = GameSaver.jsonSerializer.Formatting;
+            writer.WriteStartObject();
+            writer.WritePropertyName("class");
+            writer.WriteRawValue($"\"{typeToUse.FullName}, {typeToUse.Assembly.GetName().Name}\"");
+
+            void processMember(SerializationInfo serializationInfo)
+            {
+                bool hasSaveThis = serializationInfo.attributes.Contains(typeof(SaveThis));
+                bool hasSaveAsInstanceType = serializationInfo.attributes.Contains(typeof(SaveAsInstanceType));
+                bool hasSaveAttribute = hasSaveThis || hasSaveAsInstanceType;
+                bool omittedBecauseEditor =
 #if PERSYST_OMITTING_ENABLED
-                        Application.isEditor && memberInfo.IsDefined(typeof(OmitInEditor))
+                    Application.isEditor && serializationInfo.attributes.Contains(typeof(OmitInEditor))
 #else
                         false
 #endif
-                        ;
-                    if (!hasSaveAttribute || omittedBecauseEditor)
-                        return;
+                    ;
+                if (!hasSaveAttribute || omittedBecauseEditor)
+                    return;
 
-                    object value = ReflectionUtilities.getValue(memberInfo, isaveable);
-                    if (memberInfo.IsDefined(typeof(SaveThis)))
-                    {
-                        writer.WritePropertyName($"{memberInfo.Name}");
-                        writer.WriteRawValue(serializeMember(value, ReflectionUtilities.GetUnderlyingType(memberInfo), false).ToString());
-                    }
-                    else if (memberInfo.IsDefined(typeof(SaveAsInstanceType)))
-                    {
-                        writer.WritePropertyName($"{memberInfo.Name}");
-                        writer.WriteRawValue(serializeMember(value, value.GetType(), true).ToString());
-                    }
-                }
-
-                for (int i = 0; i < fields.Length; i++)
+                if (hasSaveThis)
                 {
-                    processMember(fields[i]);
+                    object value = ReflectionUtilities.getValue(serializationInfo.memberInfo, isaveable);
+                    writer.WritePropertyName($"{serializationInfo.memberInfo.Name}");
+                    serializeMember(value, ReflectionUtilities.GetUnderlyingType(serializationInfo.memberInfo), false, writer);
                 }
-                for (int i = 0; i < properties.Length; i++)
+                else if (hasSaveAsInstanceType)
                 {
-                    processMember(properties[i]);
+                    object value = ReflectionUtilities.getValue(serializationInfo.memberInfo, isaveable);
+                    writer.WritePropertyName($"{serializationInfo.memberInfo.Name}");
+                    serializeMember(value, value.GetType(), true, writer);
                 }
-                writer.WriteEndObject();
             }
 
+
+            for (int i = 0; i < serializationInfos.Count; i++)
+            {
+                processMember(serializationInfos[i]);
+            }
+            writer.WriteEndObject();
+
             currentSaveableTrace.Remove(isaveable);
-            return new JRaw(stringWriter.ToString());
         }
-        JRaw serializeMember(object value, Type type, bool asTypeOfInstance)
+
+        void serializeMember(object value, Type type, bool asTypeOfInstance, JsonTextWriter writer)
         {
             if (value == null)
-                return new JRaw("null");
+            {
+                writer.WriteRawValue("null");
+                return;
+            }
 
             //serialize reference
             if (type.IsAssignableTo(typeof(UnityEngine.Object)))
-            {
-                return serializeReference(value as UnityEngine.Object);
-            }
+                serializeReference(value as UnityEngine.Object, writer);
 
             //serialize value
             else
-                return serializeValue(type, value, asTypeOfInstance);
+                serializeValue(type, value, asTypeOfInstance, writer);
         }
 
-        JRaw serializeValue(Type type, object value, bool asTypeOfInstance)
+        void serializeValue(Type type, object value, bool asTypeOfInstance, JsonTextWriter writer)
         {
             if (type.GetInterfaces().Contains(typeof(ISaveable)))
-            {
-                return new JRaw(serializeISaveable(value as ISaveable, type, asTypeOfInstance)); //recursion!
-            }
+                serializeISaveable(value as ISaveable, type, asTypeOfInstance, writer); //recursion!
             else if (type.GetInterfaces().Contains(typeof(ICollection)))
-            {
-                return serializeCollection(value as ICollection, type, asTypeOfInstance);
-            }
+                serializeCollection(value as ICollection, type, asTypeOfInstance, writer);
             else
-            {
-                return new JRaw(SerializeObjectInternal(value, type, GameSaver.jsonSerializer));
-            }
+                SerializeObjectInternal(value, type, GameSaver.jsonSerializer, writer);
         }
 
-        JRaw serializeCollection(ICollection collection, Type collectionType, bool asTypeOfInstance)
+        void serializeCollection(ICollection collection, Type collectionType, bool asTypeOfInstance, JsonTextWriter writer)
         {
             if (collection == null)
-                return null;
+            {
+                writer.WriteRawValue("null");
+                return;
+            }
 
             if ((collectionType.IsConstructedGenericType &&
                     collectionType.GetGenericArguments().Any(t => t.IsAssignableTo(typeof(UnityEngine.Object)))
@@ -234,11 +270,9 @@ namespace Persyst
             )
             {
                 Debug.LogError("Collections of UnityEngine.Object are not supported. You can get around this by using an ISaveable wrapper (e.g. List<RefWrapper<GameObject>>");
-                return null;
+                writer.WriteRawValue("null");
+                return;
             }
-
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            bool firstElement = true; //for commas
 
             //dictionaries and lists of keyValuePairs
             if (collectionType.IsConstructedGenericType &&
@@ -252,43 +286,40 @@ namespace Persyst
 
                 Type typeOfKey = collectionType.GetGenericArguments()[0];
                 Type typeOfValue = collectionType.GetGenericArguments()[1];
-                sb.Append("[");
+                writer.WriteStartArray();
                 foreach (object entry in collection)
                 {
-                    if (!firstElement)
-                        sb.Append(",");
-                    firstElement = false;
-
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("Key");
                     object Key = entry.GetType().GetProperty("Key").GetValue(entry);
+                    serializeMember(Key, typeOfKey, asTypeOfInstance, writer);
+
+                    writer.WritePropertyName("Value");
                     object Value = entry.GetType().GetProperty("Value").GetValue(entry);
-                    sb.Append("{\"Key\":" + serializeMember(Key, typeOfKey, asTypeOfInstance) + ",");
-                    sb.Append("\"Value\":" + serializeMember(Value, typeOfValue, asTypeOfInstance) + "}");
+                    serializeMember(Value, typeOfValue, asTypeOfInstance, writer);
+                    writer.WriteEndObject();
                 }
-                sb.Append("]");
+                writer.WriteEndArray();
             }
             //lists, sets, stacks, etc
             else
             {
                 Type elementType = collectionType.IsArray ? collectionType.GetElementType() : collectionType.GetGenericArguments()[0];
-                sb.Append("[");
+                writer.WriteStartArray();
                 foreach (object element in collection)
                 {
-                    if (!firstElement)
-                        sb.Append(",");
-                    firstElement = false;
-                    sb.Append(serializeMember(element, elementType, asTypeOfInstance));
+                    serializeMember(element, elementType, asTypeOfInstance, writer);
                 }
-                sb.Append("]");
+                writer.WriteEndArray();
             }
-
-            return new JRaw(sb.ToString());
         }
 
-        JRaw serializeReference(UnityEngine.Object value)
+        void serializeReference(UnityEngine.Object value, JsonTextWriter writer)
         {
             if (value == null)
             {
-                return new JRaw("null");
+                writer.WriteRawValue("null");
+                return;
             }
 
             Type type = value.GetType();
@@ -299,30 +330,26 @@ namespace Persyst
                 if (!identifiableObject)
                 {
                     Debug.LogError($"Trying to serialize reference to object {value.name}, which does not have an IdentifiableObject or PersistentObject component! Value will be null");
-                    return new JRaw("null");
+                    writer.WriteRawValue("null");
+                    return;
                 }
                 long uid = identifiableObject.GetUID();
-                return new JRaw(uid.ToString());
+                writer.WriteValue(uid);
+                return;
             }
             else if (type.IsAssignableTo(typeof(IdentifiableScriptableObject)))
             {
-                return new JRaw((value as IdentifiableScriptableObject).GetUID().ToString());
+                writer.WriteValue((value as IdentifiableScriptableObject).GetUID());
+                return;
             }
 
             Debug.LogError($"Serializing a reference to a UnityEngine.Object that is not a Component, GameObject or SerializableScriptableObject is not supported. Type: {type}");
-            return null;
+            writer.WriteRawValue("null");
         }
 
-        private string SerializeObjectInternal(object value, Type type, JsonSerializer jsonSerializer)
+        private void SerializeObjectInternal(object value, Type type, JsonSerializer jsonSerializer, JsonTextWriter writer)
         {
-            StringWriter stringWriter = new StringWriter(new StringBuilder(256), CultureInfo.InvariantCulture);
-            using (JsonTextWriter jsonTextWriter = new JsonTextWriter(stringWriter))
-            {
-                jsonTextWriter.Formatting = jsonSerializer.Formatting;
-                jsonSerializer.Serialize(jsonTextWriter, value, type);
-            }
-
-            return stringWriter.ToString();
+            jsonSerializer.Serialize(writer, value, type);
         }
 
         //Loading
