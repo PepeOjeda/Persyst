@@ -29,17 +29,19 @@ namespace Persyst
             }
         }
 
-        public static Type getCollectionElementType(Type collectionType){
-            if(collectionType.IsArray)
+        public static Type getCollectionElementType(Type collectionType)
+        {
+            if (collectionType.IsArray)
                 return collectionType.GetElementType();
-            else if(collectionType.GetInterfaces().Contains(typeof(IDictionary)))
+            else if (collectionType.GetInterfaces().Contains(typeof(IDictionary)))
                 return typeof(KeyValuePair<,>).MakeGenericType(collectionType.GetGenericArguments()[0], collectionType.GetGenericArguments()[1]);
             else
                 return collectionType.GetGenericArguments()[0];
-        } 
+        }
 
-        public static object getValue(MemberInfo member, object obj){
-            if(member == null)
+        public static object getValue(MemberInfo member, object obj)
+        {
+            if (member == null)
                 return null;
             switch (member.MemberType)
             {
@@ -48,12 +50,13 @@ namespace Persyst
                 case MemberTypes.Property:
                     return ((PropertyInfo)member).GetValue(obj);
                 default:
-                    Debug.LogError("Trying to get value of member that is not a field or property: "+ member.Name);
+                    Debug.LogError("Trying to get value of member that is not a field or property: " + member.Name);
                     return null;
             }
         }
 
-        public static void setValue(MemberInfo member, object obj, object value){
+        public static void setValue(MemberInfo member, object obj, object value)
+        {
             switch (member.MemberType)
             {
                 case MemberTypes.Field:
@@ -63,16 +66,18 @@ namespace Persyst
                     ((PropertyInfo)member).SetValue(obj, value);
                     break;
                 default:
-                    Debug.LogError("Trying to set value on member that is not a field or property: "+ member.Name);
+                    Debug.LogError("Trying to set value on member that is not a field or property: " + member.Name);
                     break;
             }
         }
 
-        public static bool IsAssignableTo(this Type type, Type target){
-            return type==target || type.IsSubclassOf(target) || type.GetInterfaces().Contains(target);
+        public static bool IsAssignableTo(this Type type, Type target)
+        {
+            return type == target || type.IsSubclassOf(target) || type.GetInterfaces().Contains(target);
         }
 
-        public static bool isConstructedFrom(this Type type, Type target){
+        public static bool isConstructedFrom(this Type type, Type target)
+        {
             return type.IsConstructedGenericType && type.GetGenericTypeDefinition() == target;
         }
     }

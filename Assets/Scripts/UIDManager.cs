@@ -21,7 +21,7 @@ namespace Persyst
         {
             get
             {
-                if(_instance == null)
+                if (_instance == null)
                 {
                     UIDManager existing = FindObjectOfType(typeof(UIDManager)) as UIDManager;
                     if (existing)
@@ -30,7 +30,7 @@ namespace Persyst
                         _instance.Initialize();
                     }
                 }
-                
+
                 return _instance;
             }
         }
@@ -56,10 +56,10 @@ namespace Persyst
         [InitializeOnLoadMethod]
         static void SetupAfterDomainReload()
         {
-            if(!Application.isPlaying)
+            if (!Application.isPlaying)
             {
                 UIDManager existing = FindObjectOfType(typeof(UIDManager)) as UIDManager;
-                if(existing)
+                if (existing)
                     existing.Initialize();
             }
         }
@@ -90,10 +90,10 @@ namespace Persyst
             UIDs.Add(value, unityObject);
 
 #if UNITY_EDITOR
-            if(!BuildPipeline.isBuildingPlayer)
+            if (!BuildPipeline.isBuildingPlayer)
             {
                 EditorUtility.SetDirty(_instance);
-                if(!Application.isPlaying)
+                if (!Application.isPlaying)
                     EditorSceneManager.MarkSceneDirty(gameObject.scene);
 
                 EditorUtility.SetDirty(unityObject);
@@ -117,7 +117,7 @@ namespace Persyst
         {
             UIDs.Remove(_uid);
 #if UNITY_EDITOR
-            if(!Application.isPlaying)
+            if (!Application.isPlaying)
             {
                 EditorUtility.SetDirty(_instance);
                 EditorSceneManager.MarkSceneDirty(gameObject.scene);
@@ -130,7 +130,7 @@ namespace Persyst
         {
             UIDs[_uid] = unityObject;
 #if UNITY_EDITOR
-            if(!Application.isPlaying && !BuildPipeline.isBuildingPlayer)
+            if (!Application.isPlaying && !BuildPipeline.isBuildingPlayer)
             {
                 EditorUtility.SetDirty(_instance);
                 EditorSceneManager.MarkSceneDirty(gameObject.scene);
@@ -198,7 +198,7 @@ namespace Persyst
             if (clearThem)
                 UIDs.Clear();
         }
-        
+
         [SerializeField] long UIDtoDelete;
         [NaughtyAttributes.Button("Delete Entry")]
         void DeleteEntry()

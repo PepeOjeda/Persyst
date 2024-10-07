@@ -21,7 +21,7 @@ namespace Persyst
         Dictionary<long, JRaw> jsonDictionary;
 
 
-        
+
         public static JsonSerializerSettings regularSerializerSettings = new JsonSerializerSettings
         {
             ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
@@ -31,7 +31,7 @@ namespace Persyst
         public static JsonSerializer jsonSerializer;
 
 
-        public bool isFileLoaded{get; private set;}
+        public bool isFileLoaded { get; private set; }
         void OnEnable()
         {
             if (instance != null && instance != this)
@@ -44,7 +44,7 @@ namespace Persyst
 
             // initialize here rather than giving a construct-time value because we need the UnityConverterInitializer 
             // from the json-for-unity.converters package to run before we create the serializer
-            jsonSerializer = JsonSerializer.CreateDefault(regularSerializerSettings); 
+            jsonSerializer = JsonSerializer.CreateDefault(regularSerializerSettings);
         }
 
         internal void SaveObject(long UID, JRaw value)
@@ -63,12 +63,12 @@ namespace Persyst
                 return null;
         }
 
-#region Loading
+        #region Loading
         public static event System.Action OnSaveFileLoaded;
         [NaughtyAttributes.Button("Read")]
         public void readFile(string path = "", bool fireLoadEvent = true)
         {
-            if(path == "")
+            if (path == "")
                 path = defaultFilePath;
             string allText = "{}";
             if (File.Exists(path))
@@ -91,21 +91,21 @@ namespace Persyst
         {
             OnSaveFileLoaded?.Invoke();
         }
-#endregion
-        
+        #endregion
 
-#region Saving
-        public enum Formatting {Raw, Pretty}
+
+        #region Saving
+        public enum Formatting { Raw, Pretty }
         public static event System.Action OnSavingGame;
 
 
         /// <summary>
         /// (optionally) Gets all the data from PersistentObjects with LoadAutomatically enabled, and writes to file.
         /// </summary>
-        [NaughtyAttributes.Button("Write")] 
+        [NaughtyAttributes.Button("Write")]
         public void writeToFile(string path = "", bool fireSaveEvent = true, Formatting formatting = Formatting.Raw)
         {
-            if(path == "")
+            if (path == "")
                 path = defaultFilePath;
             if (fireSaveEvent)
                 OnSavingGame?.Invoke();
@@ -124,17 +124,17 @@ namespace Persyst
             {
                 writer.Formatting = jsonSerializer.Formatting;
                 writer.WriteStartObject();
-                foreach(var pair in jsonDictionary)
+                foreach (var pair in jsonDictionary)
                 {
                     writer.WritePropertyName($"{pair.Key}");
                     writer.WriteRawValue(pair.Value.ToString());
                 }
                 writer.WriteEndObject();
-                if(formatting == Formatting.Pretty)
+                if (formatting == Formatting.Pretty)
                 {
                     return JsonUtils.Prettify(stringWriter.ToString());
                 }
-                else 
+                else
                 {
                     return stringWriter.ToString();
                 }
@@ -145,7 +145,7 @@ namespace Persyst
         {
             OnSavingGame?.Invoke();
         }
-#endregion
+        #endregion
 
         [NaughtyAttributes.Button("Empty dictionary")]
         void EmptyDictionary()

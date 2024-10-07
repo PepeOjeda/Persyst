@@ -45,10 +45,10 @@ namespace Persyst
         }
 
         void RetrieveUIDAfterReset()
-        {    
-            if(UIDofInstance.TryGetValue(GetInstanceID(), out long auxUID))
+        {
+            if (UIDofInstance.TryGetValue(GetInstanceID(), out long auxUID))
                 myUID = auxUID;
-        } 
+        }
 
         void Initialize()
         {
@@ -63,7 +63,7 @@ namespace Persyst
             UIDofInstance[GetInstanceID()] = myUID;
         }
 
-        public void RemoveFromUIDManager() 
+        public void RemoveFromUIDManager()
         {
             UIDManager.instance.removeUID(myUID);
         }
