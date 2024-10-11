@@ -145,6 +145,10 @@ namespace Persyst
 
         void serializeISaveable(ISaveable isaveable, Type declaredType, bool asTypeOfInstance, JsonTextWriter writer)
         {
+            // if the class implements manual serialization, we do not need to do anything! :)
+            if (isaveable.Serialize(writer) == ISaveable.OperationStatus.Done)
+                return;
+
             if (currentSaveableTrace.Any(x => !x.GetType().IsValueType && object.ReferenceEquals(x, isaveable)))
             {
                 //Reference Loop!
@@ -374,16 +378,23 @@ namespace Persyst
         {
             if (jsonString == null)
                 return;
+
             Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
 
             foreach (KeyValuePair<string, JRaw> entry in jsonDict)
             {
                 Type type = Type.GetType(entry.Key);
                 MethodInfo method = typeof(GameObject).GetMethod("GetComponent", 1, new Type[] { }).MakeGenericMethod(type);
-                object script = method.Invoke(gameObject, new object[] { });
+                ISaveable script = (ISaveable)method.Invoke(gameObject, new object[] { });
                 if (script == null)
-                    script = typeof(GameObject).GetMethod("AddComponent", 1, new Type[] { }).MakeGenericMethod(type).Invoke(gameObject, new object[] { });
-                DeserializeISaveable(ref script, entry.Value);
+                    script = (ISaveable)typeof(GameObject).GetMethod("AddComponent", 1, new Type[] { }).MakeGenericMethod(type).Invoke(gameObject, new object[] { });
+
+                // if the class implements manual deserialization, let's just do that!
+                if (script.Deserialize(entry.Value) == ISaveable.OperationStatus.Done)
+                    continue;
+                
+                object asObject = script;
+                DeserializeISaveable(ref asObject, entry.Value);
             }
         }
 
