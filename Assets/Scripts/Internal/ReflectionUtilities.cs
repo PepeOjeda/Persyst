@@ -9,6 +9,14 @@ namespace Persyst
 {
     public static class ReflectionUtilities
     {
+        static Dictionary<Type, CachedData> cache = new();
+
+        class CachedData
+        {
+            public Type[] interfaces;
+            public Type[] genericArguments;
+        }
+
         public static Type GetUnderlyingType(MemberInfo member)
         {
             switch (member.MemberType)
@@ -33,7 +41,7 @@ namespace Persyst
         {
             if (collectionType.IsArray)
                 return collectionType.GetElementType();
-            else if (collectionType.GetInterfaces().Contains(typeof(IDictionary)))
+            else if (GetInterfaces(collectionType).Contains(typeof(IDictionary)))
                 return typeof(KeyValuePair<,>).MakeGenericType(collectionType.GetGenericArguments()[0], collectionType.GetGenericArguments()[1]);
             else
                 return collectionType.GetGenericArguments()[0];
@@ -73,12 +81,39 @@ namespace Persyst
 
         public static bool IsAssignableTo(this Type type, Type target)
         {
-            return type == target || type.IsSubclassOf(target) || type.GetInterfaces().Contains(target);
+            return type == target || type.IsSubclassOf(target) || GetInterfaces(type).Contains(target);
         }
 
         public static bool isConstructedFrom(this Type type, Type target)
         {
             return type.IsConstructedGenericType && type.GetGenericTypeDefinition() == target;
+        }
+
+        public static Type[] GetInterfaces(Type type)
+        {
+            CachedData cachedData = GetCachedData(type);
+            if (cachedData.interfaces == null)
+                cachedData.interfaces = type.GetInterfaces();
+            return cachedData.interfaces;
+        }
+
+        public static Type[] GetGenericArguments(Type type)
+        {
+            CachedData cachedData = GetCachedData(type);
+            if (cachedData.genericArguments == null)
+                cachedData.genericArguments = type.GetGenericArguments();
+            return cachedData.genericArguments;
+        }
+
+        static CachedData GetCachedData(Type type)
+        {
+            CachedData cachedData;
+            if (!cache.TryGetValue(type, out cachedData))
+            {
+                cachedData = new();
+                cache[type] = cachedData;
+            }
+            return cachedData;
         }
     }
 }

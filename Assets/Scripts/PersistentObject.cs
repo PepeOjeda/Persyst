@@ -68,9 +68,10 @@ namespace Persyst
                         continue;
 
                     currentSaveableTrace = new List<ISaveable>();
-                    string typeName = $"{script.GetType().FullName}, {script.GetType().Assembly.GetName().Name}";
-                    writer.WritePropertyName($"{typeName}");
-                    serializeISaveable(script, script.GetType(), false, writer);
+                    Type type = script.GetType();
+                    ReflectionData reflectionData = GetReflectionData(type);
+                    writer.WritePropertyName(reflectionData.fullName);
+                    serializeISaveable(script, type, false, writer);
                 }
                 writer.WriteEndObject();
 
@@ -130,8 +131,13 @@ namespace Persyst
         //------------------------------------
         //------------------------------------
 
-        static Dictionary<Type, List<SerializationInfo>> memberCache = new();
-        struct SerializationInfo
+        static Dictionary<Type, ReflectionData> reflectionCache = new();
+        class ReflectionData
+        {
+            public string fullName;
+            public List<MemberData> memberDatas;
+        }
+        struct MemberData
         {
             public MemberInfo memberInfo;
             public List<Type> attributes;
@@ -149,46 +155,15 @@ namespace Persyst
 
             currentSaveableTrace.Add(isaveable);
 
-            void cacheSerializationInfo(MemberInfo memberInfo, List<SerializationInfo> serializationInfos)
-            {
-                bool hasSaveThis = memberInfo.IsDefined(typeof(SaveThis));
-                bool hasSaveAsInstanceType = memberInfo.IsDefined(typeof(SaveAsInstanceType));
-                bool hasOmitInEditor = memberInfo.IsDefined(typeof(OmitInEditor));
-                if (!hasSaveThis && !hasSaveAsInstanceType && !hasOmitInEditor)
-                    return;
-
-                SerializationInfo info = new();
-                info.memberInfo = memberInfo;
-                info.attributes = new();
-                if (hasSaveThis)
-                    info.attributes.Add(typeof(SaveThis));
-                if (hasSaveAsInstanceType)
-                    info.attributes.Add(typeof(SaveAsInstanceType));
-                if (hasOmitInEditor)
-                    info.attributes.Add(typeof(OmitInEditor));
-                serializationInfos.Add(info);
-            }
-
             Type typeToUse = asTypeOfInstance ? isaveable.GetType() : declaredType;
-            List<SerializationInfo> serializationInfos;
-            if (!memberCache.TryGetValue(typeToUse, out serializationInfos))
-            {
-                serializationInfos = new();
-                FieldInfo[] fields = typeToUse.GetFields(bindingFlags);
-                PropertyInfo[] properties = typeToUse.GetProperties(bindingFlags);
-                for (int i = 0; i < fields.Length; i++)
-                    cacheSerializationInfo(fields[i], serializationInfos);
-                for (int i = 0; i < properties.Length; i++)
-                    cacheSerializationInfo(properties[i], serializationInfos);
-                memberCache[typeToUse] = serializationInfos;
-            }
+            ReflectionData reflectionData = GetReflectionData(typeToUse);
 
             writer.Formatting = GameSaver.jsonSerializer.Formatting;
             writer.WriteStartObject();
             writer.WritePropertyName("class");
-            writer.WriteRawValue($"\"{typeToUse.FullName}, {typeToUse.Assembly.GetName().Name}\"");
+            writer.WriteValue(reflectionData.fullName);
 
-            void processMember(SerializationInfo serializationInfo)
+            void processMember(MemberData serializationInfo)
             {
                 bool hasSaveThis = serializationInfo.attributes.Contains(typeof(SaveThis));
                 bool hasSaveAsInstanceType = serializationInfo.attributes.Contains(typeof(SaveAsInstanceType));
@@ -218,13 +193,55 @@ namespace Persyst
             }
 
 
-            for (int i = 0; i < serializationInfos.Count; i++)
+            for (int i = 0; i < reflectionData.memberDatas.Count; i++)
             {
-                processMember(serializationInfos[i]);
+                processMember(reflectionData.memberDatas[i]);
             }
             writer.WriteEndObject();
 
             currentSaveableTrace.Remove(isaveable);
+        }
+
+        ReflectionData GetReflectionData(Type type)
+        {
+            void cacheSerializationInfo(MemberInfo memberInfo, List<MemberData> memberDatas)
+            {
+                bool hasSaveThis = memberInfo.IsDefined(typeof(SaveThis));
+                bool hasSaveAsInstanceType = memberInfo.IsDefined(typeof(SaveAsInstanceType));
+                bool hasOmitInEditor = memberInfo.IsDefined(typeof(OmitInEditor));
+                if (!hasSaveThis && !hasSaveAsInstanceType && !hasOmitInEditor)
+                    return;
+
+                MemberData data = new();
+                data.memberInfo = memberInfo;
+                data.attributes = new();
+                if (hasSaveThis)
+                    data.attributes.Add(typeof(SaveThis));
+                if (hasSaveAsInstanceType)
+                    data.attributes.Add(typeof(SaveAsInstanceType));
+                if (hasOmitInEditor)
+                    data.attributes.Add(typeof(OmitInEditor));
+                memberDatas.Add(data);
+            }
+
+            ReflectionData reflectionData;
+            if (!reflectionCache.TryGetValue(type, out reflectionData))
+            {
+                reflectionData = new()
+                {
+                    fullName = $"{type.FullName}, {type.Assembly.GetName().Name}",
+                    memberDatas = new()
+                };
+                FieldInfo[] fields = type.GetFields(bindingFlags);
+                PropertyInfo[] properties = type.GetProperties(bindingFlags);
+                for (int i = 0; i < fields.Length; i++)
+                    cacheSerializationInfo(fields[i], reflectionData.memberDatas);
+                for (int i = 0; i < properties.Length; i++)
+                    cacheSerializationInfo(properties[i], reflectionData.memberDatas);
+                reflectionCache[type] = reflectionData;
+            }
+
+            return reflectionData;
         }
 
         void serializeMember(object value, Type type, bool asTypeOfInstance, JsonTextWriter writer)
@@ -246,9 +263,9 @@ namespace Persyst
 
         void serializeValue(Type type, object value, bool asTypeOfInstance, JsonTextWriter writer)
         {
-            if (type.GetInterfaces().Contains(typeof(ISaveable)))
+            if (ReflectionUtilities.GetInterfaces(type).Contains(typeof(ISaveable)))
                 serializeISaveable(value as ISaveable, type, asTypeOfInstance, writer); //recursion!
-            else if (type.GetInterfaces().Contains(typeof(ICollection)))
+            else if (ReflectionUtilities.GetInterfaces(type).Contains(typeof(ICollection)))
                 serializeCollection(value as ICollection, type, asTypeOfInstance, writer);
             else
                 SerializeObjectInternal(value, type, GameSaver.jsonSerializer, writer);
@@ -263,7 +280,7 @@ namespace Persyst
             }
 
             if ((collectionType.IsConstructedGenericType &&
-                    collectionType.GetGenericArguments().Any(t => t.IsAssignableTo(typeof(UnityEngine.Object)))
+                    ReflectionUtilities.GetGenericArguments(collectionType).Any(t => t.IsAssignableTo(typeof(UnityEngine.Object)))
                 )
                 ||
                 collectionType.IsArray && collectionType.GetElementType().IsAssignableTo(typeof(UnityEngine.Object))
@@ -277,15 +294,15 @@ namespace Persyst
             //dictionaries and lists of keyValuePairs
             if (collectionType.IsConstructedGenericType &&
                     (
-                        collectionType.GetInterfaces().Contains(typeof(IDictionary))
+                        ReflectionUtilities.GetInterfaces(collectionType).Contains(typeof(IDictionary))
                         ||
                         collectionType.GenericTypeArguments.Any(t => t.isConstructedFrom(typeof(KeyValuePair<,>)))
                     )
             )
             {
 
-                Type typeOfKey = collectionType.GetGenericArguments()[0];
-                Type typeOfValue = collectionType.GetGenericArguments()[1];
+                Type typeOfKey = ReflectionUtilities.GetGenericArguments(collectionType)[0];
+                Type typeOfValue = ReflectionUtilities.GetGenericArguments(collectionType)[1];
                 writer.WriteStartArray();
                 foreach (object entry in collection)
                 {
@@ -304,7 +321,7 @@ namespace Persyst
             //lists, sets, stacks, etc
             else
             {
-                Type elementType = collectionType.IsArray ? collectionType.GetElementType() : collectionType.GetGenericArguments()[0];
+                Type elementType = collectionType.IsArray ? collectionType.GetElementType() : ReflectionUtilities.GetGenericArguments(collectionType)[0];
                 writer.WriteStartArray();
                 foreach (object element in collection)
                 {
@@ -449,12 +466,12 @@ namespace Persyst
         object DeserializeValue(Type variableType, object currentValue, JRaw jraw)
         {
 
-            if (variableType.GetInterfaces().Contains(typeof(ISaveable)))
+            if (ReflectionUtilities.GetInterfaces(variableType).Contains(typeof(ISaveable)))
             {
                 DeserializeISaveable(ref currentValue, jraw); //recursion!
                 return currentValue;
             }
-            else if (variableType.GetInterfaces().Contains(typeof(ICollection)))
+            else if (ReflectionUtilities.GetInterfaces(variableType).Contains(typeof(ICollection)))
             {
                 return DeserializeCollection(variableType, jraw);
             }
@@ -481,8 +498,8 @@ namespace Persyst
                 if (elementType.isConstructedFrom(typeof(KeyValuePair<,>)))
                 {
                     var kvP_jraw = JsonConvert.DeserializeObject<KeyValuePair<JRaw, JRaw>>(jrawElement.ToString());
-                    object key = DeserializeCollectionElement(elementType.GetGenericArguments()[0], kvP_jraw.Key);
-                    object value = DeserializeCollectionElement(elementType.GetGenericArguments()[1], kvP_jraw.Value);
+                    object key = DeserializeCollectionElement(ReflectionUtilities.GetGenericArguments(elementType)[0], kvP_jraw.Key);
+                    object value = DeserializeCollectionElement(ReflectionUtilities.GetGenericArguments(elementType)[1], kvP_jraw.Value);
                     element = Activator.CreateInstance(elementType, key, value);
                 }
                 else
@@ -499,7 +516,7 @@ namespace Persyst
             object value;
             if (jrawElement.ToString() == "null")
                 return null;
-            else if (elementType.GetInterfaces().Contains(typeof(ISaveable)))
+            else if (ReflectionUtilities.GetInterfaces(elementType).Contains(typeof(ISaveable)))
             {
                 value = Activator.CreateInstance(elementType);
                 DeserializeISaveable(ref value, jrawElement);
