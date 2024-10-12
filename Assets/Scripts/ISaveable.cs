@@ -21,7 +21,7 @@ namespace Persyst
         }
 
         // Same deal as Serialize()
-        public OperationStatus Deserialize(JRaw jraw)
+        public OperationStatus Deserialize(JToken jraw)
         {
             return OperationStatus.NotDone;
         }

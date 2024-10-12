@@ -18,7 +18,7 @@ namespace Persyst
 
         [SerializeField] string defaultFilePath = "Assets/saveFile.json";
 
-        Dictionary<long, JRaw> jsonDictionary;
+        Dictionary<long, JObject> jsonDictionary;
 
 
 
@@ -40,24 +40,24 @@ namespace Persyst
             }
             instance = this;
             isFileLoaded = false;
-            jsonDictionary = new Dictionary<long, JRaw>();
+            jsonDictionary = new Dictionary<long, JObject>();
 
             // initialize here rather than giving a construct-time value because we need the UnityConverterInitializer 
             // from the json-for-unity.converters package to run before we create the serializer
             jsonSerializer = JsonSerializer.CreateDefault(regularSerializerSettings);
         }
 
-        internal void SaveObject(long UID, JRaw value)
+        internal void SaveObject(long UID, JObject value)
         {
             jsonDictionary[UID] = value;
         }
 
-        internal JRaw RetrieveObject(long UID)
+        internal JObject RetrieveObject(long UID)
         {
             if (!isFileLoaded)
                 return null;
 
-            if (jsonDictionary.TryGetValue(UID, out JRaw value))
+            if (jsonDictionary.TryGetValue(UID, out JObject value))
                 return value;
             else
                 return null;
@@ -83,7 +83,7 @@ namespace Persyst
 
         public void ParseJsonString(string jsonString)
         {
-            jsonDictionary = JsonConvert.DeserializeObject<Dictionary<long, JRaw>>(jsonString);
+            jsonDictionary = JsonConvert.DeserializeObject<Dictionary<long, JObject>>(jsonString);
             isFileLoaded = true;
         }
 

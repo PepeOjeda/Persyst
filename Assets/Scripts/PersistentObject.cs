@@ -77,14 +77,17 @@ namespace Persyst
 
             }
 
-            GameSaver.instance.SaveObject(myUID, new JRaw(stringWriter.ToString()));
+            GameSaver.instance.SaveObject(myUID, JObject.Parse(stringWriter.ToString())); //TODO check this
         }
 
 
         public void LoadObject()
         {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             if (Application.isPlaying && this != null)
                 LoadJson(GameSaver.instance.RetrieveObject(myUID));
+            stopwatch.Stop();
+            // Debug.Log($"Deserializing object {myUID} took {stopwatch.Elapsed.TotalMilliseconds}ms");
         }
 
 
@@ -374,44 +377,40 @@ namespace Persyst
         }
 
         //Loading
-        void LoadJson(JRaw jsonString)
+        void LoadJson(JObject jObject)
         {
-            if (jsonString == null)
+            if (jObject == null)
                 return;
 
-            Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
-
-            foreach (KeyValuePair<string, JRaw> entry in jsonDict)
+            foreach (JProperty property in jObject.Properties())
             {
-                Type type = Type.GetType(entry.Key);
+                Type type = Type.GetType(property.Name);
                 MethodInfo method = typeof(GameObject).GetMethod("GetComponent", 1, new Type[] { }).MakeGenericMethod(type);
                 ISaveable script = (ISaveable)method.Invoke(gameObject, new object[] { });
                 if (script == null)
                     script = (ISaveable)typeof(GameObject).GetMethod("AddComponent", 1, new Type[] { }).MakeGenericMethod(type).Invoke(gameObject, new object[] { });
 
                 // if the class implements manual deserialization, let's just do that!
-                if (script.Deserialize(entry.Value) == ISaveable.OperationStatus.Done)
+                if (script.Deserialize(property.Value) == ISaveable.OperationStatus.Done)
                     continue;
-                
+
                 object asObject = script;
-                DeserializeISaveable(ref asObject, entry.Value);
+                DeserializeISaveable(ref asObject, property.Value as JObject);
             }
         }
 
-        void DeserializeISaveable(ref object script, JRaw jsonString)
+        void DeserializeISaveable(ref object script, JObject jObject)
         {
-            if (jsonString.ToString() == "null")
+            if (jObject == null)
                 return;
 
-            Dictionary<string, JRaw> jsonDict = JsonConvert.DeserializeObject<Dictionary<string, JRaw>>(jsonString.ToString());
-            string typeName = JsonConvert.DeserializeObject<string>(jsonDict["class"].ToString());
+            string typeName = jObject["class"].Value<string>();
             Type serializedType = Type.GetType(typeName);
             if (serializedType == null)
             {
                 Debug.LogError($"Cannot find type {typeName} when deserializing {script}");
                 return;
             }
-            jsonDict.Remove("class");
 
             //if the object was serialized with a type that's different from the type of its current value, create a new one of the serialized type
             //this is a slightly dangerous thing, because it means you can potentially lose information that you had already assigned to the object prior to loading the save file
@@ -419,39 +418,45 @@ namespace Persyst
             if (script == null || serializedType != script.GetType())
                 script = Activator.CreateInstance(serializedType);
 
-            foreach (KeyValuePair<string, JRaw> entry in jsonDict)
+            foreach (JProperty property in jObject.Properties())
             {
-                MemberInfo memberInfo = null;
-                memberInfo = serializedType.GetField(entry.Key, bindingFlags);
+                if (property.Name == "class")
+                    continue;
+
+                MemberInfo memberInfo = serializedType.GetField(property.Name, bindingFlags); // is it a field?
                 if (memberInfo == null)
-                    memberInfo = serializedType.GetProperty(entry.Key, bindingFlags);
+                    memberInfo = serializedType.GetProperty(property.Name, bindingFlags); // is it a property?
                 if (memberInfo == null)
                 {
-                    Debug.LogError($"Serialized member \"{entry.Key}\" not found on type \"{serializedType}\". Ignoring it.");
+                    Debug.LogError($"Serialized member \"{property.Name}\" not found on type \"{serializedType}\". Ignoring it.");
                     continue;
                 }
-                object value = DeserializeMember(ref script, memberInfo, entry.Value);
+                object value = DeserializeMember(ref script, memberInfo, property.Value);
                 ReflectionUtilities.setValue(memberInfo, script, value);
             }
         }
 
-        object DeserializeMember(ref object script, MemberInfo memberInfo, JRaw jsonValue)
+        object DeserializeMember(ref object script, MemberInfo memberInfo, JToken jToken)
         {
             Type variableType = ReflectionUtilities.GetUnderlyingType(memberInfo);
             //serialized reference
             if (variableType.IsAssignableTo(typeof(UnityEngine.Object)))
             {
-                if (long.TryParse(jsonValue.ToString(), out long ref_UID))
+                try
                 {
-                    return DeserializeReference(ref script, ref_UID, memberInfo);
+                    return DeserializeReference(ref script, jToken.Value<long>(), memberInfo);
                 }
-                return null;
+                catch (Exception e)
+                {
+                    Debug.LogError($"Exception {e.Message} when tring to read UID: {jToken}");
+                    return null;
+                }
             }
             //serialized value
             else
             {
                 object value = ReflectionUtilities.getValue(memberInfo, script);
-                return DeserializeValue(variableType, value, jsonValue);
+                return DeserializeValue(variableType, value, jToken);
             }
         }
         object DeserializeReference(ref object script, long ref_UID, MemberInfo memberInfo)
@@ -474,47 +479,45 @@ namespace Persyst
                 return referencedObject;
         }
 
-        object DeserializeValue(Type variableType, object currentValue, JRaw jraw)
+        object DeserializeValue(Type variableType, object currentValue, JToken jToken)
         {
-
             if (ReflectionUtilities.GetInterfaces(variableType).Contains(typeof(ISaveable)))
             {
-                DeserializeISaveable(ref currentValue, jraw); //recursion!
+                DeserializeISaveable(ref currentValue, jToken as JObject); //recursion!
                 return currentValue;
             }
             else if (ReflectionUtilities.GetInterfaces(variableType).Contains(typeof(ICollection)))
             {
-                return DeserializeCollection(variableType, jraw);
+                return DeserializeCollection(variableType, jToken as JArray);
             }
             else
             {
-                MethodInfo method = typeof(JsonConvert).GetMethod("DeserializeObject", 1, new Type[] { typeof(string) }).MakeGenericMethod(variableType);
-                object value = method.Invoke(null, new object[] { jraw.ToString() });
-                return value;
+                //this seems to be a bit of a hotspot because of the jsonSerializer having to iterate over all converters to find the right one for the variableType
+                // I tried caching and whatnot, but it turns out most of the time it ends up not finding any matching converter at all and instead calling a manual serialization function (which is internal, so we can't just do that ourselves)
+                // It might be worth looking into if we ever want to optimize deserialization any further
+                return jToken.ToObject(variableType, GameSaver.jsonSerializer); 
             }
         }
 
-        object DeserializeCollection(Type collectionType, JRaw collectionJson)
+        object DeserializeCollection(Type collectionType, JArray collectionJson)
         {
-            //ICollection collection = (ICollection) Activator.CreateInstance(variableType);
-            List<JRaw> jrawCollection = JsonConvert.DeserializeObject<List<JRaw>>(collectionJson.ToString());
-            if (jrawCollection == null)
+            if (collectionJson == null)
                 return null;
             Type elementType = ReflectionUtilities.getCollectionElementType(collectionType);
 
             List<object> tempList = new List<object>();
-            foreach (JRaw jrawElement in jrawCollection)
+            foreach (JToken elementToken in collectionJson)
             {
                 object element;
                 if (elementType.isConstructedFrom(typeof(KeyValuePair<,>)))
                 {
-                    var kvP_jraw = JsonConvert.DeserializeObject<KeyValuePair<JRaw, JRaw>>(jrawElement.ToString());
-                    object key = DeserializeCollectionElement(ReflectionUtilities.GetGenericArguments(elementType)[0], kvP_jraw.Key);
-                    object value = DeserializeCollectionElement(ReflectionUtilities.GetGenericArguments(elementType)[1], kvP_jraw.Value);
+                    JObject kvP = elementToken as JObject;
+                    object key = DeserializeCollectionElement(ReflectionUtilities.GetGenericArguments(elementType)[0], kvP["Key"]);
+                    object value = DeserializeCollectionElement(ReflectionUtilities.GetGenericArguments(elementType)[1], kvP["Value"]);
                     element = Activator.CreateInstance(elementType, key, value);
                 }
                 else
-                    element = DeserializeCollectionElement(elementType, jrawElement);
+                    element = DeserializeCollectionElement(elementType, elementToken);
 
                 tempList.Add(element);
             }
@@ -522,18 +525,17 @@ namespace Persyst
             return ICollectionExtension.fromList(collectionType, tempList);
         }
 
-        object DeserializeCollectionElement(Type elementType, JRaw jrawElement)
+        object DeserializeCollectionElement(Type elementType, JToken jToken)
         {
-            object value;
-            if (jrawElement.ToString() == "null")
+            object value = null;
+            if (jToken == null)
                 return null;
             else if (ReflectionUtilities.GetInterfaces(elementType).Contains(typeof(ISaveable)))
             {
-                value = Activator.CreateInstance(elementType);
-                DeserializeISaveable(ref value, jrawElement);
+                DeserializeISaveable(ref value, jToken as JObject);
             }
             else
-                value = DeserializeValue(elementType, null, jrawElement);
+                value = DeserializeValue(elementType, null, jToken);
 
             return value;
         }
