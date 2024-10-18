@@ -1,11 +1,6 @@
-#if UNITY_EDITOR
-#endif
-
 using UnityEngine;
 using System;
 using Persyst.Internal;
-
-
 
 namespace Persyst
 {
@@ -38,8 +33,7 @@ namespace Persyst
         }
 
         protected virtual void OnEnable()
-        {
-        }
+        {}
 
         void Reset()
         {
