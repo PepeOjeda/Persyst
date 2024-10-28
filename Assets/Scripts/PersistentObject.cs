@@ -353,7 +353,7 @@ namespace Persyst
                 IdentifiableObject identifiableObject = (IdentifiableObject)method.Invoke(value, new object[] { });
                 if (!identifiableObject)
                 {
-                    Debug.LogError($"Trying to serialize reference to object {value.name}, which does not have an IdentifiableObject or PersistentObject component! Value will be null");
+                    Debug.LogError($"Trying to serialize reference to object {value.name}, which does not have an IdentifiableObject or PersistentObject component! Value will be null(in object {gameObject.name}) ");
                     writer.WriteRawValue("null");
                     return;
                 }
